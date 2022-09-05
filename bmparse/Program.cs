@@ -1,6 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-
-using Be.IO;
+﻿using Be.IO;
 using System.IO;
 using bmparse.debug;
 
@@ -25,7 +23,7 @@ public static class Program
             -1,
             -1,
             -1,
-            42, // take the fucking hint
+            42, 
             -1,
             -1
         };
@@ -43,14 +41,9 @@ public static class Program
             for (int b = 0; b < trackInfos.Length; b++)
             {
                 qq.Position = trackInfos[b];
-                DebugSystem.message($"Sound at {qq.Position:X}");
                 WLF.AnalyizeSound();
             }
-            DebugSystem.message("NEXT CATEGORY!!!!");
         }
-        
-        
-
 
         WLF.fullUnexploredDepth();
         WLF.CalculateReferenceTypes();
@@ -61,6 +54,12 @@ public static class Program
             foreach (long ree in kvp.Value.referenceSource)
                 DebugSystem.message($"\t\t\t\t{ree:X}");
             DebugSystem.message("");
+        }
+
+        WLF.CalculateGlobalLabels();
+        foreach (KeyValuePair<long, string> kvp in WLF.globalLabels)
+        {
+            DebugSystem.message(kvp.Value);
         }
     }
 }

@@ -16,20 +16,21 @@ namespace bmparse
         {
             var w = new List<int>();
             var lastAddress = 0;
-  
             while (true)
             {
                 var startAddress = reader.BaseStream.Position;
                 passedAddresses.Add(reader.BaseStream.Position);
                 var bmsEvent = commandFactory.readNextCommand(reader);
+
                 if (bmsEvent is OpenTrack)
                 {
                     var ev = (OpenTrack)bmsEvent;
-
+                    
                     getGlobalLabel("CATEGORY", (int)ev.Address, "OPEN");
                     DebugSystem.message($"{ev.Address:X}");
                     if (!w.Contains((int)ev.Address) && ev.Address > onlyGreaterThan)
                         w.Add((int)ev.Address);
+           
                     lastAddress = (int)ev.Address;
                 }
                 else if (bmsEvent is Jump)
@@ -46,6 +47,7 @@ namespace bmparse
                 if (isStopEvent(bmsEvent, false))
                     break;
             }
+            //Console.ReadLine();
             return w;
         }
 
@@ -208,6 +210,7 @@ namespace bmparse
         public void AnalyzeCallOrJump(AddressReferenceInfo addrInfo)
         {
             var initialAddress = reader.BaseStream.Position;
+            var trueBeginningAddress = initialAddress;
             if (addrInfo.referenceSource.Count == 1)
                 initialAddress = addrInfo.referenceSource[0];
             List<int> TrackAddresses = new List<int>();
@@ -217,7 +220,7 @@ namespace bmparse
                 var startAddress = reader.BaseStream.Position;
                 if (passedAddresses.Contains(startAddress))
                 {
-                    referenceAddress(startAddress, ReferenceType.LEADIN, initialAddress);
+                    referenceAddress(startAddress, ReferenceType.LEADIN, initialAddress).metaData = trueBeginningAddress;
                     break; // We have already been here. 
                 }
 
@@ -271,7 +274,6 @@ namespace bmparse
         public void fullUnexploredDepth()
         {
             var had_unexplored_jumps = false;
-
             foreach (KeyValuePair<long, AddressReferenceInfo> kvp in addressReferenceAccumulator.ToArray<KeyValuePair<long, AddressReferenceInfo>>())
             {
 
@@ -285,13 +287,12 @@ namespace bmparse
             if (had_unexplored_jumps)
                 fullUnexploredDepth(); // Loop until we've explored the entire BMS file.
         }
+
         public void CalculateReferenceTypes()
         {
-
-      
             foreach (KeyValuePair<long,AddressReferenceInfo> kvp in addressReferenceAccumulator.ToArray<KeyValuePair<long,AddressReferenceInfo>>())
             {
-                  var ref_diff = false;
+                var ref_diff = false;
                 var last_src = 0L;
                 foreach (long src in kvp.Value.referenceSource)
                 {
@@ -306,6 +307,11 @@ namespace bmparse
             }
         }
 
-
+        public void CalculateGlobalLabels()
+        {
+            foreach (KeyValuePair<long, AddressReferenceInfo> kvp in addressReferenceAccumulator.ToArray<KeyValuePair<long, AddressReferenceInfo>>())
+                if (kvp.Value.count > 1 && kvp.Value.singleSource == false)
+                    getGlobalLabel(kvp.Value.type.ToString(), (int)kvp.Key, "COMMON");
+        }
     }
 }

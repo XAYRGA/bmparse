@@ -315,12 +315,12 @@ namespace bmparse.bms
 
 
 
-    public class ParamSet16 : bmscommand
+    public class ParameterSet16 : bmscommand
     {
         public byte TargetParameter;
         public short Value;
 
-        public ParamSet16()
+        public ParameterSet16()
         {
             CommandType = BMSCommandType.PARAM_SET_16;
         }
@@ -1270,7 +1270,7 @@ namespace bmparse.bms
 
     public class ParameterSet8 : bmscommand
     {
-        public byte Source;
+        public byte TargetParameter;
         public byte Value;
 
         public ParameterSet8()
@@ -1280,14 +1280,14 @@ namespace bmparse.bms
 
         public override void read(BeBinaryReader read)
         {
-            Source = read.ReadByte();
+            TargetParameter = read.ReadByte();
             Value = read.ReadByte();
         }
 
         public override void write(BeBinaryWriter write)
         {
             write.Write((byte)CommandType);
-            write.Write(Source);
+            write.Write(TargetParameter);
             write.Write(Value);
         }
     }

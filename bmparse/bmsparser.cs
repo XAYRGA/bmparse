@@ -25,7 +25,7 @@ namespace bmparse.bms
             OpcodeLookup[(byte)BMSCommandType.CMD_WAIT8] = typeof(WaitCommand8);
             OpcodeLookup[(byte)BMSCommandType.CMD_WAIT16] = typeof(WaitCommand16);
             OpcodeLookup[(byte)BMSCommandType.CMD_WAITR] = typeof(WaitRegister);
-            OpcodeLookup[(byte)BMSCommandType.PARAM_SET_16] = typeof(ParamSet16);
+            OpcodeLookup[(byte)BMSCommandType.PARAM_SET_16] = typeof(ParameterSet16);
             OpcodeLookup[(byte)BMSCommandType.PARAM_ADD_16] = typeof(ParamAdd16);
             OpcodeLookup[(byte)BMSCommandType.SIMPLEENV] = typeof(SimpleEnvelope);
             OpcodeLookup[(byte)BMSCommandType.SETINTERRUPT] = typeof(SetInterrupt);
