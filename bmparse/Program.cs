@@ -8,6 +8,7 @@ public static class Program
     {
         var qq = File.OpenRead("luigise.bms");
         var qc = new BeBinaryReader(qq);
+        Queue<int[]> ohno = new Queue<int[]>();
         var categoryStops = new int[]
         {
             0x660,
@@ -30,14 +31,16 @@ public static class Program
 
 
         var WLF = new bmparse.BMSDisassembler(qq);
+        var WLB = new bmparse.BMSDisassembler(qq);
+
 
         var qw = WLF.AnalyzeRootTrack();
         var trackInfos = new int[0];
         for (int i = 0; i < qw.Count; i++)
         {
             qq.Position = qw[i];
-            DebugSystem.message($"{qq.Position:X}");
             trackInfos = WLF.AnalyzeCategory(categorySizes[i], categoryStops[i]);
+            ohno.Enqueue(trackInfos);
             for (int b = 0; b < trackInfos.Length; b++)
             {
                 qq.Position = trackInfos[b];
@@ -47,19 +50,54 @@ public static class Program
 
         WLF.fullUnexploredDepth();
         WLF.CalculateReferenceTypes();
-
-        foreach (KeyValuePair<long, bmparse.BMSDisassembler.AddressReferenceInfo> kvp in WLF.addressReferenceAccumulator)
-        {
-            DebugSystem.message($"\t{kvp.Value.count:X}\t{kvp.Value.type}\t{kvp.Key:X}: ");
-            foreach (long ree in kvp.Value.referenceSource)
-                DebugSystem.message($"\t\t\t\t{ree:X}");
-            DebugSystem.message("");
-        }
-
         WLF.CalculateGlobalLabels();
-        foreach (KeyValuePair<long, string> kvp in WLF.globalLabels)
+        WLF.reader.BaseStream.Position = 0;
+        WLF.DisassembleRootTrack();
+        var basePath = "./lm_out";
+
+        Directory.CreateDirectory(basePath);
+
+        WLF.reconcileLocalReferences();
+
+        File.WriteAllText($"{basePath}/root.txt", WLF.output.ToString());
+
+
+        for (int i = 0; i < qw.Count; i++)
         {
-            DebugSystem.message(kvp.Value);
+            Directory.CreateDirectory($"{basePath}/category{i}");
+            WLF.output = new System.Text.StringBuilder();
+            WLF.resetLocalStack();
+            qq.Position = qw[i];
+            WLF.DisassembleCategory(categorySizes[i], categoryStops[i]);
+            WLF.reconcileLocalReferences();
+            File.WriteAllText($"{basePath}/categoryboot{i}.txt",WLF.output.ToString());
+            var qqq = ohno.Dequeue();
+
+
+            Dictionary<long, long> fuuf = new Dictionary<long, long>();
+
+            for (int x=0; x < qqq.Length; x++)
+            {
+                var soundID = i << 0xC;
+                soundID += 0x800 + x;
+
+                Console.WriteLine($"{soundID:X}");
+                qq.Position = qqq[x];
+                if (!fuuf.ContainsKey(qq.Position))
+                    fuuf[qq.Position] = soundID;
+
+
+                WLF.output = new System.Text.StringBuilder();
+                WLF.resetLocalStack();
+                WLF.DisassembleTrack($"Sound {i} - {x}");
+                WLF.reconcileLocalReferences();
+                File.WriteAllText($"{basePath}/category{i}/sound{x}.txt", WLF.output.ToString());
+            }
+
+            //foreach (KeyValuePair<long,long> b in fuuf)
+               // Console.WriteLine($"{b.Value:X}");
+
+            
         }
     }
 }

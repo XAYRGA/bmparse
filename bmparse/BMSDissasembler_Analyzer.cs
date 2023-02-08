@@ -25,17 +25,23 @@ namespace bmparse
                 if (bmsEvent is OpenTrack)
                 {
                     var ev = (OpenTrack)bmsEvent;
-                    
-                    getGlobalLabel("CATEGORY", (int)ev.Address, "OPEN");
-                    DebugSystem.message($"{ev.Address:X}");
+
+
+                    //DebugSystem.message($"{ev.Address:X}");
+                    referenceAddress(ev.Address, ReferenceType.TRACK);
                     if (!w.Contains((int)ev.Address) && ev.Address > onlyGreaterThan)
+                    {
                         w.Add((int)ev.Address);
+                        getGlobalLabel("CATEGORY", (int)ev.Address, "OPEN");
+                    }
            
                     lastAddress = (int)ev.Address;
                 }
                 else if (bmsEvent is Jump)
                 {
+                   
                     var ev = (Jump)bmsEvent;
+                    referenceAddress(ev.Address, ReferenceType.JUMP, 0);
                     getGlobalLabel("ROOT_JUMP", (int)ev.Address);
                 }
                 else if (bmsEvent is Call)
@@ -62,7 +68,7 @@ namespace bmparse
                 var startAddress = reader.BaseStream.Position;
                 passedAddresses.Add(reader.BaseStream.Position);
                 var bmsEvent = commandFactory.readNextCommand(reader);
-                DebugSystem.message($"{startAddress:X} {reader.BaseStream.Position:X} {bmsEvent}");
+                //DebugSystem.message($"{startAddress:X} {reader.BaseStream.Position:X} {bmsEvent}");
                 if (bmsEvent is OpenTrack)
                 {
                     var ev = (OpenTrack)bmsEvent;
@@ -78,7 +84,7 @@ namespace bmparse
                     var ev = (Call)bmsEvent;
                     if (ev.Flags == 0xC0)
                     {
-                       DebugSystem.message($"Found sound jumptable at {reader.BaseStream.Position:X} {ev.Flags:X} -> {ev.Address:X}");
+                       //DebugSystem.message($"Found sound jumptable at {reader.BaseStream.Position:X} {ev.Flags:X} -> {ev.Address:X}");
                         var storage = reader.BaseStream.Position;
                         reader.BaseStream.Position = ev.Address;
 
@@ -122,7 +128,7 @@ namespace bmparse
                 var startAddress = reader.BaseStream.Position;
                 passedAddresses.Add(reader.BaseStream.Position);
                 var bmsEvent = commandFactory.readNextCommand(reader);
-                DebugSystem.message($"SOUND-TRACK {startAddress:X} {reader.BaseStream.Position:X} {bmsEvent}");
+                //DebugSystem.message($"SOUND-TRACK {startAddress:X} {reader.BaseStream.Position:X} {bmsEvent}");
                 if (bmsEvent is OpenTrack)
                 {
                     var ev = (OpenTrack)bmsEvent;
@@ -160,14 +166,16 @@ namespace bmparse
 
         public void AnalyizeSound()
         {
+           
             List<int> TrackAddresses = new List<int>();
             var initialAddress = reader.BaseStream.Position;
+            referenceAddress(initialAddress, ReferenceType.SOUND);
             while (true)
             {
                 var startAddress = reader.BaseStream.Position;
                 passedAddresses.Add(reader.BaseStream.Position);
                 var bmsEvent = commandFactory.readNextCommand(reader);
-                DebugSystem.message($"SOUND {startAddress:X} {reader.BaseStream.Position:X} {bmsEvent}");
+                //DebugSystem.message($"SOUND {startAddress:X} {reader.BaseStream.Position:X} {bmsEvent}");
                 if (bmsEvent is OpenTrack)
                 {
                     var ev = (OpenTrack)bmsEvent;
@@ -193,7 +201,6 @@ namespace bmparse
                 {
                     var ev = (SetInterrupt)bmsEvent;
                     referenceAddress(ev.Address, ReferenceType.INTERRUPT, initialAddress);
-                    DebugSystem.message($"WARNING! NESTED INTERRUPT", MessageLevel.WARNING);
                 }
                 if (isStopEvent(bmsEvent, true))
                     break;
@@ -226,7 +233,7 @@ namespace bmparse
 
                 passedAddresses.Add(reader.BaseStream.Position);
                 var bmsEvent = commandFactory.readNextCommand(reader);
-                DebugSystem.message($"UNDISP BRANCH {startAddress:X} {reader.BaseStream.Position:X} {bmsEvent}");
+                //DebugSystem.message($"UNDISP BRANCH {startAddress:X} {reader.BaseStream.Position:X} {bmsEvent}");
                 if (bmsEvent is OpenTrack)
                 {
                     var ev = (OpenTrack)bmsEvent;
@@ -256,7 +263,6 @@ namespace bmparse
                 {
                     var ev = (SetInterrupt)bmsEvent;
                     referenceAddress(ev.Address, ReferenceType.INTERRUPT, initialAddress);
-                    DebugSystem.message($"WARNING! NESTED INTERRUPT", MessageLevel.WARNING);
                 }
                 if (isStopEvent(bmsEvent, true))
                     break;
@@ -276,7 +282,6 @@ namespace bmparse
             var had_unexplored_jumps = false;
             foreach (KeyValuePair<long, AddressReferenceInfo> kvp in addressReferenceAccumulator.ToArray<KeyValuePair<long, AddressReferenceInfo>>())
             {
-
                 if (!passedAddresses.Contains(kvp.Key) && kvp.Value.type!=ReferenceType.LEADIN)
                 {
                     reader.BaseStream.Position = kvp.Key;
@@ -312,6 +317,8 @@ namespace bmparse
             foreach (KeyValuePair<long, AddressReferenceInfo> kvp in addressReferenceAccumulator.ToArray<KeyValuePair<long, AddressReferenceInfo>>())
                 if (kvp.Value.count > 1 && kvp.Value.singleSource == false)
                     getGlobalLabel(kvp.Value.type.ToString(), (int)kvp.Key, "COMMON");
+                else if (kvp.Value.type==ReferenceType.SOUND)
+                    getGlobalLabel(kvp.Value.type.ToString(), (int)kvp.Key);
         }
     }
 }

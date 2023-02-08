@@ -132,6 +132,23 @@ namespace bmparse.bms
 
         public abstract void read(BeBinaryReader read);
         public abstract void write(BeBinaryWriter write);
+        public abstract string getAssemblyString(string[] data = null);
+
+        internal string checkArgOverride(byte position,string @default, string[] data)
+        {
+            if (data==null || (data.Length <= position) || data[position] == null)                 
+                return @default; ;           
+            return data[position]; ;
+        }
+
+        internal string getByteString(byte[] hx)
+        {
+            string x = "HEX(";
+            for (int i = 0; i < hx.Length; i++)
+                x += $"{hx[i]:X},";
+            x += ")";
+            return x;
+        }
 
     }
 
@@ -146,14 +163,17 @@ namespace bmparse.bms
 
         public override void read(BeBinaryReader read)
         {
-            
 
         }
 
         public override void write(BeBinaryWriter write)
         {
             write.Write((byte)((byte)BMSCommandType.NOTE_OFF + Voice));
-        
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"NOTEOFF {Voice:X}h");
         }
     }
 
@@ -185,7 +205,7 @@ namespace bmparse.bms
             Velocity = read.ReadByte();
      
             Type = (byte)(flags >> 3);
-            Console.WriteLine(Type);
+            //Console.WriteLine(Type);
 
             if ((Type & 1) > 0)
             {
@@ -213,7 +233,7 @@ namespace bmparse.bms
 
             if ((Type & 1) > 0)
             {
-                write.Write((byte)Release);
+               write.Write((byte)Release);
                write.Write((byte)Delay);
                // write.Write((byte)Length);
             }
@@ -224,7 +244,18 @@ namespace bmparse.bms
                 write.Write((byte)Length);
             }
         }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            if ((Type & 1) > 0)
+                return ($"NOTEONRD {Note:X}h {Voice:X}h {Velocity:X}h {Release:X}h {Delay:X}h");
+            else if ((Type & 2) > 0)
+                return ($"NOTEONRDL {Note:X}h {Voice:X}h {Velocity:X}h {Release:X}h {Delay:X}h {Length:X}h");
+            else
+                return ($"NOTEON {Note:X}h {Voice:X}h {Velocity:X}h");
+        }
     }
+
 
     public class WaitCommand8 : bmscommand
     {
@@ -233,6 +264,11 @@ namespace bmparse.bms
         public WaitCommand8()
         {
             CommandType = BMSCommandType.CMD_WAIT8;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"WAIT8 {Delay}");
         }
 
         public override void read(BeBinaryReader read)
@@ -254,6 +290,11 @@ namespace bmparse.bms
         public WaitRegister()
         {
             CommandType = BMSCommandType.CMD_WAITR;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"WAITRE {Register}");
         }
 
         public override void read(BeBinaryReader read)
@@ -278,6 +319,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.OUTSWITCH;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"OUTSWITCH {Register}");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Register = read.ReadByte();
@@ -294,16 +340,21 @@ namespace bmparse.bms
 
     public class WaitCommand16 : bmscommand
     {
-        public short Delay;
+        public ushort Delay;
 
         public WaitCommand16()
         {
             CommandType = BMSCommandType.CMD_WAIT16;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"WAIT16 {Delay}");
+        }
+
         public override void read(BeBinaryReader read)
         {
-            Delay = read.ReadInt16();
+            Delay = read.ReadUInt16();
         }
 
         public override void write(BeBinaryWriter write)
@@ -325,6 +376,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.PARAM_SET_16;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"PARAM16 {TargetParameter:X}h {Value}");
+        }
+
         public override void read(BeBinaryReader read)
         {
             TargetParameter = read.ReadByte();
@@ -339,14 +395,19 @@ namespace bmparse.bms
         }
     }
 
-    public class ParamAdd16 : bmscommand
+    public class ParameterAdd16 : bmscommand
     {
         public byte TargetParameter;
         public short Value;
 
-        public ParamAdd16()
+        public ParameterAdd16()
         {
             CommandType = BMSCommandType.PARAM_ADD_16;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"ADD16 {TargetParameter:X}h {Value:X}");
         }
 
         public override void read(BeBinaryReader read)
@@ -374,6 +435,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.OPENTRACK;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"OPENTRACK {TrackID:X}h {checkArgOverride(0,Address.ToString() + 'h',data)}");
+        }
+
         public override void read(BeBinaryReader read)
         {
             TrackID = read.ReadByte();
@@ -397,6 +463,11 @@ namespace bmparse.bms
         public Jump()
         {
             CommandType = BMSCommandType.JMP;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"JMP {Flags:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
         }
 
         public override void read(BeBinaryReader read)
@@ -423,6 +494,14 @@ namespace bmparse.bms
         public Call()
         {
             CommandType = BMSCommandType.CALL;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+           if (Flags!=0xC0)
+                return($"CALL {Flags:X}h {checkArgOverride(0, Address.ToString() + 'h',data)}");
+           else
+                return ($"CALLTABLE {TargetRegister:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
         }
 
         public override void read(BeBinaryReader read)
@@ -455,6 +534,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.SIMPLEENV;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SIMPLENV {Flags:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Flags = read.ReadByte();
@@ -478,6 +562,11 @@ namespace bmparse.bms
         public SetInterrupt()
         {
             CommandType = BMSCommandType.SETINTERRUPT;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SETINTER {InterruptLevel:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
         }
 
         public override void read(BeBinaryReader read)
@@ -504,6 +593,13 @@ namespace bmparse.bms
         public OpOverride4()
         {
             CommandType = BMSCommandType.OPOVERRIDE_4;
+
+
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"CRINGE4 {Instruction:X}h {ArgumentMask:X}h {getByteString(ArgumentMaskLookup)} {getByteString(Stupid)}");
         }
 
         public override void read(BeBinaryReader read)
@@ -512,16 +608,17 @@ namespace bmparse.bms
             ArgumentMask = read.ReadByte();
             var stupid_size = 0;
             // todo: get your free hardcoded sizes
+            // fuck you , by the way. 
             switch (Instruction)
             {
                 default:
                     throw new Exception($"oof 0x{Instruction:X}");
             }
             Stupid = new byte[stupid_size];
-            ArgumentMaskLookup = new byte[4]
+            ArgumentMaskLookup = new byte[4] // fuck this in particular
             {
                   read.ReadByte(),
-                  read.ReadByte(),
+                  read.ReadByte(), 
                   read.ReadByte(),
                   read.ReadByte(),
             };
@@ -549,6 +646,11 @@ namespace bmparse.bms
         public OpOverride1()
         {
             CommandType = BMSCommandType.OPOVERRIDE_1;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"CRINGE1 {Instruction:X}h {ArgumentMask:X}h {getByteString(ArgumentMaskLookup)} {getByteString(Stupid)}");
         }
 
         public override void read(BeBinaryReader read)
@@ -595,6 +697,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.PRINTF;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"PRINT \"{Message}\" {getByteString(RegisterReferences)}");
+        }
+
         public override void read(BeBinaryReader read)
         {
             var references = 0;
@@ -627,6 +734,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.CLOSETRACK;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"CLOSETRK {TrackID:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             TrackID = read.ReadByte();       
@@ -649,6 +761,11 @@ namespace bmparse.bms
         public PanSweepSet()
         {
             CommandType = BMSCommandType.PANSWSET;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"PANSWEEP {A:X}h {B:X}h {C:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -680,6 +797,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.BUSCONNECT;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"BUSCONNECT {A:X}h {B:X}h {C:X}h ");
+        }
+
         public override void read(BeBinaryReader read)
         {
             A = read.ReadByte();
@@ -697,13 +819,18 @@ namespace bmparse.bms
         }
     }
 
-    public class SimpleOsc : bmscommand
+    public class SimpleOscillator : bmscommand
     {
         public byte OscID;
 
-        public SimpleOsc()
+        public SimpleOscillator()
         {
-            CommandType = BMSCommandType.CLOSETRACK;
+            CommandType = BMSCommandType.SIMPLEOSC;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SIMPLEOSC {OscID:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -713,7 +840,7 @@ namespace bmparse.bms
 
         public override void write(BeBinaryWriter write)
         {
-            write.Write((byte)BMSCommandType.CLOSETRACK);
+            write.Write((byte)CommandType);
             write.Write(OscID);
         }
 
@@ -721,22 +848,27 @@ namespace bmparse.bms
 
     public class Transpose : bmscommand
     {
-        public byte Transp;
+        public byte Transposition;
 
         public Transpose()
         {
             CommandType = BMSCommandType.TRANSPOSE;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TRANSPOSE {Transposition:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
-            Transp = read.ReadByte();
+            Transposition = read.ReadByte();
         }
 
         public override void write(BeBinaryWriter write)
         {
             write.Write((byte)BMSCommandType.TRANSPOSE);
-            write.Write(Transp);
+            write.Write(Transposition);
         }
 
     }
@@ -748,6 +880,11 @@ namespace bmparse.bms
         public OscillatorRoute()
         {
             CommandType = BMSCommandType.OSCROUTE;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"OSCROUTE {Switch:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -769,6 +906,11 @@ namespace bmparse.bms
         public VibratoDepth()
         {
             CommandType = BMSCommandType.VIBDEPTH;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"VIBDEPTH {Depth:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -793,6 +935,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.VIBDEPTHMIDI;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"VIBDEPTHMIDI {Depth:X}h {Unk:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Depth = read.ReadByte();
@@ -815,6 +962,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.VIBPITCH;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"VIBPITCH {Pitch:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Pitch = read.ReadByte();
@@ -834,6 +986,11 @@ namespace bmparse.bms
         public IIRCutoff()
         {
             CommandType = BMSCommandType.IIRCUTOFF;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"IIRC {Cutoff:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -859,6 +1016,11 @@ namespace bmparse.bms
         public SimpleADSR()
         {
             CommandType = BMSCommandType.SIMPLEADSR;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SIMADSR {Attack} {Decay} {Sustain} {Release} {Unknown}");
         }
 
         public override void read(BeBinaryReader read)
@@ -889,6 +1051,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.CLRI;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"CLEINT");
+        }
+
         public override void read(BeBinaryReader read)
         {
   
@@ -907,6 +1074,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.RETI;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"RETINT");
+        }
+
         public override void read(BeBinaryReader read)
         {
 
@@ -923,6 +1095,11 @@ namespace bmparse.bms
         public FlushAll()
         {
             CommandType = BMSCommandType.FLUSHALL;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"FLUSHALL");
         }
 
         public override void read(BeBinaryReader read)
@@ -944,6 +1121,11 @@ namespace bmparse.bms
         public ReadPort()
         {
             CommandType = BMSCommandType.READPORT;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"READPORT {Source}h {Destination:x}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -971,6 +1153,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.WRITEPORT;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"WRITEPORT {Source}h {Destination:x}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Source = read.ReadByte();
@@ -993,6 +1180,11 @@ namespace bmparse.bms
         public ChildWritePort()
         {
             CommandType = BMSCommandType.CHILDWRITEPORT;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"CHILDWP {Source:X}h {Destination:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -1018,7 +1210,12 @@ namespace bmparse.bms
 
         public PERFS8DURU16()
         {
-            CommandType = BMSCommandType.PERF_S16_DUR_U16;
+            CommandType = BMSCommandType.PERF_S8_DUR_U16;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TPRMS8_DU16 {Parameter:X}h {Value} {Duration:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -1048,6 +1245,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.PERF_S16_NODUR;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TPRMU8 {Parameter:X}h {Value}");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Parameter = read.ReadByte();
@@ -1074,6 +1276,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.PERF_U8_NODUR;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TPRMU8 {Parameter:X}h {Value}");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Parameter = read.ReadByte();
@@ -1097,6 +1304,11 @@ namespace bmparse.bms
         public PERFS16U89E()
         {
             CommandType = BMSCommandType.PERF_S16_DUR_U8_9E;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TPRMS16_DU8_9E {Parameter:X}h {Value} {Unknown:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -1126,6 +1338,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.PERF_S16_DUR_U8;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TPRMS16_DU8 {Parameter:X}h {Value} {Duration:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Parameter = read.ReadByte();
@@ -1150,7 +1367,12 @@ namespace bmparse.bms
 
         public PERFS8()
         {
-            CommandType = BMSCommandType.PERF_S16_NODUR;
+            CommandType = BMSCommandType.PERF_S8_NODUR;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TPRMS8 {Parameter:X}h {Value}");
         }
 
         public override void read(BeBinaryReader read)
@@ -1179,6 +1401,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.PERF_S8_DUR_U8;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TPRMS8_DU8 {Parameter:X}h {Value} {Duration:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Parameter = read.ReadByte();
@@ -1203,6 +1430,11 @@ namespace bmparse.bms
         public ParameterSetRegister()
         {
             CommandType = BMSCommandType.PARAM_SET_R;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"PARAMREG {Source:X}h {Destination}");
         }
 
         public override void read(BeBinaryReader read)
@@ -1230,6 +1462,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.PARAM_ADD_R;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"ADDR {Source:X}h {Destination:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Source = read.ReadByte();
@@ -1254,6 +1491,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.PARAM_SUBTRACT;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SUB8 {Source:X}h {Destination:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Source = read.ReadByte();
@@ -1276,6 +1518,11 @@ namespace bmparse.bms
         public ParameterSet8()
         {
             CommandType = BMSCommandType.PARAM_SET_8;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"PARAM8 {TargetParameter:X}h {Value}");
         }
 
         public override void read(BeBinaryReader read)
@@ -1304,6 +1551,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.PARAM_ADD_8;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"ADD8 {Source:X}h {Value:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Source = read.ReadByte();
@@ -1327,6 +1579,11 @@ namespace bmparse.bms
         public ParameterMultiply8()
         {
             CommandType = BMSCommandType.PARAM_MUL_8;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"MUL8 {Source:X}h {Value:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -1353,6 +1610,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.PARAM_CMP_8;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"CMP8 {Source:X}h {Value:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Source = read.ReadByte();
@@ -1367,14 +1629,19 @@ namespace bmparse.bms
         }
     }
 
-    public class ParameterComparerRegister : bmscommand
+    public class ParameterCompareRegister : bmscommand
     {
         public byte Source;
         public byte Register;
 
-        public ParameterComparerRegister()
+        public ParameterCompareRegister()
         {
             CommandType = BMSCommandType.PARAM_CMP_R;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"CMPR {Source:X}h {Register:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -1401,6 +1668,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.SETPARAM_90;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SETPARAM90 {Source:X}h {Value:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Source = read.ReadByte();
@@ -1423,6 +1695,11 @@ namespace bmparse.bms
         public ParameterSet16_92()
         {
             CommandType = BMSCommandType.SETPARAM_92;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SETPARAM92 {Source:X}h {Value:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -1450,6 +1727,11 @@ namespace bmparse.bms
         public PanPowerSet()
         {
             CommandType = BMSCommandType.PANPOWSET;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"PANPOWSET {A} {B} {C} {D} {E}");
         }
 
         public override void read(BeBinaryReader read)
@@ -1485,6 +1767,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.SETLASTNOTE;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SETLAST {Note:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Note = read.ReadByte();
@@ -1505,6 +1792,11 @@ namespace bmparse.bms
         public LoopStart()
         {
             CommandType = BMSCommandType.LOOP_S;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"LOOPSTART {Count:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -1532,6 +1824,16 @@ namespace bmparse.bms
         public ParamBitwise()
         {
             CommandType = BMSCommandType.PARAM_BITWISE;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            if ((Flags & 0xF) == 0xC)
+                return ($"BITWZC {A:X}h {B:X}h {C:X}h");
+            else if ((Flags & 0xF) == 0x8)
+                return ($"BITWZ8 {A:X}h ");
+            else
+                return ($"BITWZ {A:X}h {B:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -1586,6 +1888,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.LOOP_E;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"LOOPEND");
+        }
+
         public override void read(BeBinaryReader read)
         {
   
@@ -1605,6 +1912,11 @@ namespace bmparse.bms
         public SyncCpu()
         {
             CommandType = BMSCommandType.SYNCCPU;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SYNC {Value:X}h");
         }
 
         public override void read(BeBinaryReader read)
@@ -1628,6 +1940,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.TEMPO;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TEMPO {BeatsPerMinute}");
+        }
+
         public override void read(BeBinaryReader read)
         {
             BeatsPerMinute = read.ReadUInt16();
@@ -1647,6 +1964,11 @@ namespace bmparse.bms
         public Timebase()
         {
             CommandType = BMSCommandType.TIMEBASE;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TIMEBASE {PulsesPerQuarterNote}");
         }
 
         public override void read(BeBinaryReader read)
@@ -1671,6 +1993,11 @@ namespace bmparse.bms
             CommandType = BMSCommandType.RETURN;
         }
 
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"RETURN {Condition:X}h");
+        }
+
         public override void read(BeBinaryReader read)
         {
             Condition = read.ReadByte();
@@ -1683,11 +2010,16 @@ namespace bmparse.bms
         }
     }
 
-    public class ReturnNoArg  : bmscommand
+    public class ReturnNoArg : bmscommand
     {
         public ReturnNoArg()
         {
             CommandType = BMSCommandType.RETURN_NOARG;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"RETIMM");
         }
 
         public override void read(BeBinaryReader read)
@@ -1706,6 +2038,11 @@ namespace bmparse.bms
         public Finish()
         {
             CommandType = BMSCommandType.FINISH;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"FINISH");
         }
 
         public override void read(BeBinaryReader read)
