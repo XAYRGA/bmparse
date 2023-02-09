@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Be.IO;
+using xayrga;
+using xayrga.byteglider;
 
 namespace bmparse.bms
 {
@@ -130,8 +131,8 @@ namespace bmparse.bms
         public int OriginalAddress;
         public BMSCommandType CommandType;
 
-        public abstract void read(BeBinaryReader read);
-        public abstract void write(BeBinaryWriter write);
+        public abstract void read(bgReader read);
+        public abstract void write(bgWriter write);
         public abstract string getAssemblyString(string[] data = null);
 
         internal string checkArgOverride(byte position,string @default, string[] data)
@@ -161,14 +162,14 @@ namespace bmparse.bms
             CommandType = BMSCommandType.NOTE_OFF;
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
 
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)((byte)BMSCommandType.NOTE_OFF + Voice));
+            write.WriteBE((byte)((byte)BMSCommandType.NOTE_OFF + Voice));
         }
 
         public override string getAssemblyString(string[] data = null)
@@ -197,7 +198,7 @@ namespace bmparse.bms
             CommandType = BMSCommandType.NOTE_ON;
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
 
             var flags = read.ReadByte();
@@ -222,26 +223,26 @@ namespace bmparse.bms
 
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write(Note);
+            write.WriteBE(Note);
             byte voiceFlags = (byte)(Voice | (Type << 3));
 
-            write.Write(voiceFlags);
+            write.WriteBE(voiceFlags);
 
-            write.Write(Velocity);
+            write.WriteBE(Velocity);
 
             if ((Type & 1) > 0)
             {
-               write.Write((byte)Release);
-               write.Write((byte)Delay);
-               // write.Write((byte)Length);
+               write.WriteBE((byte)Release);
+               write.WriteBE((byte)Delay);
+               // write.WriteBE((byte)Length);
             }
             else if ((Type & 2) > 0)
             {
-                write.Write((byte)Release);
-                write.Write((byte)Delay);
-                write.Write((byte)Length);
+                write.WriteBE((byte)Release);
+                write.WriteBE((byte)Delay);
+                write.WriteBE((byte)Length);
             }
         }
 
@@ -271,15 +272,15 @@ namespace bmparse.bms
             return ($"WAIT8 {Delay}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Delay = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.CMD_WAIT8);
-            write.Write(Delay);
+            write.WriteBE((byte)BMSCommandType.CMD_WAIT8);
+            write.WriteBE(Delay);
         }
     }
 
@@ -297,15 +298,15 @@ namespace bmparse.bms
             return ($"WAITRE {Register}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Register = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.CMD_WAIT8);
-            write.Write(Register);
+            write.WriteBE((byte)BMSCommandType.CMD_WAIT8);
+            write.WriteBE(Register);
         }
     }
 
@@ -324,15 +325,15 @@ namespace bmparse.bms
             return ($"OUTSWITCH {Register}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Register = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Register);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Register);
         }
     }
 
@@ -352,15 +353,15 @@ namespace bmparse.bms
             return ($"WAIT16 {Delay}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Delay = read.ReadUInt16();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.CMD_WAIT16);
-            write.Write(Delay);
+            write.WriteBE((byte)BMSCommandType.CMD_WAIT16);
+            write.WriteBE(Delay);
         }
     }
 
@@ -381,17 +382,17 @@ namespace bmparse.bms
             return ($"PARAM16 {TargetParameter:X}h {Value}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             TargetParameter = read.ReadByte();
             Value = read.ReadInt16();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.PARAM_SET_16);
-            write.Write(TargetParameter);
-            write.Write(Value);
+            write.WriteBE((byte)BMSCommandType.PARAM_SET_16);
+            write.WriteBE(TargetParameter);
+            write.WriteBE(Value);
         }
     }
 
@@ -410,17 +411,17 @@ namespace bmparse.bms
             return ($"ADD16 {TargetParameter:X}h {Value:X}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             TargetParameter = read.ReadByte();
             Value = read.ReadInt16();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(TargetParameter);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(TargetParameter);
+            write.WriteBE(Value);
         }
     }
 
@@ -440,17 +441,17 @@ namespace bmparse.bms
             return ($"OPENTRACK {TrackID:X}h {checkArgOverride(0,Address.ToString() + 'h',data)}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             TrackID = read.ReadByte();
-            Address = read.ReadU24();
+            Address = read.ReadUInt24BE();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.OPENTRACK);
-            write.Write(TrackID);
-            write.Write(Address,true);
+            write.WriteBE((byte)BMSCommandType.OPENTRACK);
+            write.WriteBE(TrackID);
+            write.WriteBE(Address,true);
         }
     }
 
@@ -470,17 +471,17 @@ namespace bmparse.bms
             return ($"JMP {Flags:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Flags = read.ReadByte();
-            Address = read.ReadU24();
+            Address = read.ReadUInt24BE();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.JMP);
-            write.Write(Flags);
-            write.Write(Address,true);
+            write.WriteBE((byte)BMSCommandType.JMP);
+            write.WriteBE(Flags);
+            write.WriteBE(Address,true);
         }
     }
 
@@ -504,23 +505,23 @@ namespace bmparse.bms
                 return ($"CALLTABLE {TargetRegister:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Flags = read.ReadByte();
 
             if (Flags == 0xC0)
                 TargetRegister = read.ReadByte();
 
-            Address = read.ReadU24();
+            Address = read.ReadUInt24BE();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.CALL);
-            write.Write(Flags);
+            write.WriteBE((byte)BMSCommandType.CALL);
+            write.WriteBE(Flags);
             if (Flags == 0xC0)
-                write.Write(TargetRegister);
-            write.Write(Address,true);
+                write.WriteBE(TargetRegister);
+            write.WriteBE(Address,true);
         }
     }
 
@@ -539,17 +540,17 @@ namespace bmparse.bms
             return ($"SIMPLENV {Flags:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Flags = read.ReadByte();
-            Address = read.ReadU24();
+            Address = read.ReadUInt24BE();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.SIMPLEENV);
-            write.Write(Flags);
-            write.Write(Address, true);
+            write.WriteBE((byte)BMSCommandType.SIMPLEENV);
+            write.WriteBE(Flags);
+            write.WriteBE(Address, true);
         }
     }
 
@@ -569,17 +570,17 @@ namespace bmparse.bms
             return ($"SETINTER {InterruptLevel:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             InterruptLevel = read.ReadByte();
-            Address = read.ReadU24();
+            Address = read.ReadUInt24BE();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.SETINTERRUPT);
-            write.Write(InterruptLevel);
-            write.Write(Address, true);
+            write.WriteBE((byte)BMSCommandType.SETINTERRUPT);
+            write.WriteBE(InterruptLevel);
+            write.WriteBE(Address, true);
         }
     }
 
@@ -602,7 +603,7 @@ namespace bmparse.bms
             return ($"CRINGE4 {Instruction:X}h {ArgumentMask:X}h {getByteString(ArgumentMaskLookup)} {getByteString(Stupid)}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Instruction = read.ReadByte();
             ArgumentMask = read.ReadByte();
@@ -625,11 +626,11 @@ namespace bmparse.bms
         }
 
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.OPOVERRIDE_4);
-            write.Write(Instruction);
-            write.Write(ArgumentMask);
+            write.WriteBE((byte)BMSCommandType.OPOVERRIDE_4);
+            write.WriteBE(Instruction);
+            write.WriteBE(ArgumentMask);
             write.Write(Stupid);
             write.Write(ArgumentMaskLookup);
         }
@@ -653,7 +654,7 @@ namespace bmparse.bms
             return ($"CRINGE1 {Instruction:X}h {ArgumentMask:X}h {getByteString(ArgumentMaskLookup)} {getByteString(Stupid)}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Instruction = read.ReadByte();
             ArgumentMask = read.ReadByte();
@@ -677,11 +678,11 @@ namespace bmparse.bms
         }
 
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.OPOVERRIDE_4);
-            write.Write(Instruction);
-            write.Write(ArgumentMask);
+            write.WriteBE((byte)BMSCommandType.OPOVERRIDE_4);
+            write.WriteBE(Instruction);
+            write.WriteBE(ArgumentMask);
             write.Write(Stupid);
             write.Write(ArgumentMaskLookup);
         }
@@ -702,7 +703,7 @@ namespace bmparse.bms
             return ($"PRINT \"{Message}\" {getByteString(RegisterReferences)}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             var references = 0;
             char last;
@@ -715,11 +716,11 @@ namespace bmparse.bms
             RegisterReferences = read.ReadBytes(references);
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.PRINTF);
+            write.WriteBE((byte)BMSCommandType.PRINTF);
             write.Write(Encoding.ASCII.GetBytes(Message));
-            write.Write((byte)0x00);
+            write.WriteBE((byte)0x00);
             write.Write(RegisterReferences); 
         }
     }
@@ -739,15 +740,15 @@ namespace bmparse.bms
             return ($"CLOSETRK {TrackID:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             TrackID = read.ReadByte();       
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.CLOSETRACK);
-            write.Write(TrackID);
+            write.WriteBE((byte)BMSCommandType.CLOSETRACK);
+            write.WriteBE(TrackID);
         }
     }
 
@@ -768,19 +769,19 @@ namespace bmparse.bms
             return ($"PANSWEEP {A:X}h {B:X}h {C:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             A = read.ReadByte();
             B = read.ReadByte();
             C = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(A);
-            write.Write(B);
-            write.Write(C);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(A);
+            write.WriteBE(B);
+            write.WriteBE(C);
 
         }
     }
@@ -802,19 +803,19 @@ namespace bmparse.bms
             return ($"BUSCONNECT {A:X}h {B:X}h {C:X}h ");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             A = read.ReadByte();
             B = read.ReadByte();
             C = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(A);
-            write.Write(B);
-            write.Write(C);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(A);
+            write.WriteBE(B);
+            write.WriteBE(C);
 
         }
     }
@@ -833,15 +834,15 @@ namespace bmparse.bms
             return ($"SIMPLEOSC {OscID:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             OscID = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(OscID);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(OscID);
         }
 
     }
@@ -860,15 +861,15 @@ namespace bmparse.bms
             return ($"TRANSPOSE {Transposition:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Transposition = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.TRANSPOSE);
-            write.Write(Transposition);
+            write.WriteBE((byte)BMSCommandType.TRANSPOSE);
+            write.WriteBE(Transposition);
         }
 
     }
@@ -887,15 +888,15 @@ namespace bmparse.bms
             return ($"OSCROUTE {Switch:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Switch = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.OSCROUTE);
-            write.Write(Switch);
+            write.WriteBE((byte)BMSCommandType.OSCROUTE);
+            write.WriteBE(Switch);
         }
     }
 
@@ -913,15 +914,15 @@ namespace bmparse.bms
             return ($"VIBDEPTH {Depth:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Depth = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.VIBDEPTH);
-            write.Write(Depth);
+            write.WriteBE((byte)BMSCommandType.VIBDEPTH);
+            write.WriteBE(Depth);
         }
     }
 
@@ -940,16 +941,16 @@ namespace bmparse.bms
             return ($"VIBDEPTHMIDI {Depth:X}h {Unk:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Depth = read.ReadByte();
             Unk = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.VIBDEPTHMIDI);
-            write.Write(Depth);
+            write.WriteBE((byte)BMSCommandType.VIBDEPTHMIDI);
+            write.WriteBE(Depth);
         }
     }
 
@@ -967,15 +968,15 @@ namespace bmparse.bms
             return ($"VIBPITCH {Pitch:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Pitch = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.VIBPITCH);
-            write.Write(Pitch);
+            write.WriteBE((byte)BMSCommandType.VIBPITCH);
+            write.WriteBE(Pitch);
         }
     }
 
@@ -993,15 +994,15 @@ namespace bmparse.bms
             return ($"IIRC {Cutoff:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Cutoff = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)BMSCommandType.IIRCUTOFF);
-            write.Write(Cutoff);
+            write.WriteBE((byte)BMSCommandType.IIRCUTOFF);
+            write.WriteBE(Cutoff);
         }
     }
 
@@ -1023,7 +1024,7 @@ namespace bmparse.bms
             return ($"SIMADSR {Attack} {Decay} {Sustain} {Release} {Unknown}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Attack = read.ReadInt16();
             Decay = read.ReadInt16();
@@ -1032,14 +1033,14 @@ namespace bmparse.bms
             Unknown = read.ReadInt16();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Attack);
-            write.Write(Decay);
-            write.Write(Sustain);
-            write.Write(Release);
-            write.Write(Unknown);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Attack);
+            write.WriteBE(Decay);
+            write.WriteBE(Sustain);
+            write.WriteBE(Release);
+            write.WriteBE(Unknown);
         }
     }
 
@@ -1056,14 +1057,14 @@ namespace bmparse.bms
             return ($"CLEINT");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
   
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
+            write.WriteBE((byte)CommandType);
         }
     }
 
@@ -1079,14 +1080,14 @@ namespace bmparse.bms
             return ($"RETINT");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
 
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
+            write.WriteBE((byte)CommandType);
         }
     }
 
@@ -1102,14 +1103,14 @@ namespace bmparse.bms
             return ($"FLUSHALL");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
 
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
+            write.WriteBE((byte)CommandType);
         }
     }
 
@@ -1128,17 +1129,17 @@ namespace bmparse.bms
             return ($"READPORT {Source}h {Destination:x}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Destination = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Destination);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Destination);
         }
     }
 
@@ -1158,17 +1159,17 @@ namespace bmparse.bms
             return ($"WRITEPORT {Source}h {Destination:x}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Destination = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Destination);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Destination);
         }
     }
 
@@ -1187,17 +1188,17 @@ namespace bmparse.bms
             return ($"CHILDWP {Source:X}h {Destination:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Destination = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Destination);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Destination);
         }
     }
 
@@ -1218,19 +1219,19 @@ namespace bmparse.bms
             return ($"TPRMS8_DU16 {Parameter:X}h {Value} {Duration:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Parameter = read.ReadByte();
             Value = read.ReadSByte();
             Duration = read.ReadUInt16();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Parameter);
-            write.Write(Value);
-            write.Write(Duration);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Parameter);
+            write.WriteBE(Value);
+            write.WriteBE(Duration);
         }
     }
 
@@ -1250,17 +1251,17 @@ namespace bmparse.bms
             return ($"TPRMU8 {Parameter:X}h {Value}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Parameter = read.ReadByte();
             Value = read.ReadInt16(); 
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Parameter);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Parameter);
+            write.WriteBE(Value);
         }
     }
 
@@ -1281,17 +1282,17 @@ namespace bmparse.bms
             return ($"TPRMU8 {Parameter:X}h {Value}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Parameter = read.ReadByte();
             Value = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Parameter);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Parameter);
+            write.WriteBE(Value);
         }
     }
 
@@ -1311,19 +1312,19 @@ namespace bmparse.bms
             return ($"TPRMS16_DU8_9E {Parameter:X}h {Value} {Unknown:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Parameter = read.ReadByte();
             Value = read.ReadInt16();
             Unknown = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Parameter);
-            write.Write(Value);
-            write.Write(Unknown);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Parameter);
+            write.WriteBE(Value);
+            write.WriteBE(Unknown);
         }
     }
 
@@ -1343,19 +1344,19 @@ namespace bmparse.bms
             return ($"TPRMS16_DU8 {Parameter:X}h {Value} {Duration:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Parameter = read.ReadByte();
             Value = read.ReadInt16();
             Duration = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Parameter);
-            write.Write(Value);
-            write.Write(Duration);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Parameter);
+            write.WriteBE(Value);
+            write.WriteBE(Duration);
         }
     }
 
@@ -1375,17 +1376,17 @@ namespace bmparse.bms
             return ($"TPRMS8 {Parameter:X}h {Value}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Parameter = read.ReadByte();
             Value = read.ReadSByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Parameter);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Parameter);
+            write.WriteBE(Value);
         }
     }
 
@@ -1406,19 +1407,19 @@ namespace bmparse.bms
             return ($"TPRMS8_DU8 {Parameter:X}h {Value} {Duration:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Parameter = read.ReadByte();
             Value = read.ReadSByte();
             Duration = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Parameter);
-            write.Write(Value);
-            write.Write(Duration);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Parameter);
+            write.WriteBE(Value);
+            write.WriteBE(Duration);
         }
     }
 
@@ -1437,17 +1438,17 @@ namespace bmparse.bms
             return ($"PARAMREG {Source:X}h {Destination}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Destination = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Destination);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Destination);
         }
     }
 
@@ -1467,17 +1468,17 @@ namespace bmparse.bms
             return ($"ADDR {Source:X}h {Destination:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Destination = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Destination);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Destination);
         }
     }
 
@@ -1496,17 +1497,17 @@ namespace bmparse.bms
             return ($"SUB8 {Source:X}h {Destination:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Destination = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Destination);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Destination);
         }
     }
 
@@ -1525,17 +1526,17 @@ namespace bmparse.bms
             return ($"PARAM8 {TargetParameter:X}h {Value}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             TargetParameter = read.ReadByte();
             Value = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(TargetParameter);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(TargetParameter);
+            write.WriteBE(Value);
         }
     }
 
@@ -1556,17 +1557,17 @@ namespace bmparse.bms
             return ($"ADD8 {Source:X}h {Value:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Value = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Value);
         }
     }
 
@@ -1586,17 +1587,17 @@ namespace bmparse.bms
             return ($"MUL8 {Source:X}h {Value:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Value = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Value);
         }
     }
 
@@ -1615,17 +1616,17 @@ namespace bmparse.bms
             return ($"CMP8 {Source:X}h {Value:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Value = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Value);
         }
     }
 
@@ -1644,17 +1645,17 @@ namespace bmparse.bms
             return ($"CMPR {Source:X}h {Register:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Register = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Register);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Register);
         }
     }
 
@@ -1673,17 +1674,17 @@ namespace bmparse.bms
             return ($"SETPARAM90 {Source:X}h {Value:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Value = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Value);
         }
     }
 
@@ -1702,17 +1703,17 @@ namespace bmparse.bms
             return ($"SETPARAM92 {Source:X}h {Value:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Source = read.ReadByte();
             Value = read.ReadInt16();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Source);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Value);
         }
     }
 
@@ -1734,7 +1735,7 @@ namespace bmparse.bms
             return ($"PANPOWSET {A} {B} {C} {D} {E}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             A = read.ReadByte();
             B = read.ReadByte();
@@ -1744,14 +1745,14 @@ namespace bmparse.bms
 
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(A);
-            write.Write(B);
-            write.Write(C);
-            write.Write(D);
-            write.Write(E);        
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(A);
+            write.WriteBE(B);
+            write.WriteBE(C);
+            write.WriteBE(D);
+            write.WriteBE(E);        
         }
     }
 
@@ -1772,15 +1773,15 @@ namespace bmparse.bms
             return ($"SETLAST {Note:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Note = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Note);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Note);
         }
     }
 
@@ -1799,15 +1800,15 @@ namespace bmparse.bms
             return ($"LOOPSTART {Count:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Count = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Count);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Count);
         }
     }
 
@@ -1836,7 +1837,7 @@ namespace bmparse.bms
                 return ($"BITWZ {A:X}h {B:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Flags = read.ReadByte();
 
@@ -1857,25 +1858,25 @@ namespace bmparse.bms
             }
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Flags);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Flags);
 
             if ((Flags & 0xF) == 0xC)
             {
-                write.Write(A);
-                write.Write(B);
-                write.Write(C);
+                write.WriteBE(A);
+                write.WriteBE(B);
+                write.WriteBE(C);
             }
             else if ((Flags & 0xF) == 0x8)
             {
-                write.Write(A);
+                write.WriteBE(A);
             }
             else
             {
-                write.Write(A);
-                write.Write(B);
+                write.WriteBE(A);
+                write.WriteBE(B);
             }
         }
     }
@@ -1893,14 +1894,14 @@ namespace bmparse.bms
             return ($"LOOPEND");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
   
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
+            write.WriteBE((byte)CommandType);
         }
     }
 
@@ -1919,15 +1920,15 @@ namespace bmparse.bms
             return ($"SYNC {Value:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Value = read.ReadUInt16();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Value);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Value);
         }
     }
 
@@ -1945,15 +1946,15 @@ namespace bmparse.bms
             return ($"TEMPO {BeatsPerMinute}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             BeatsPerMinute = read.ReadUInt16();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(BeatsPerMinute);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(BeatsPerMinute);
         }
     }
 
@@ -1971,15 +1972,15 @@ namespace bmparse.bms
             return ($"TIMEBASE {PulsesPerQuarterNote}");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             PulsesPerQuarterNote = read.ReadUInt16();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(PulsesPerQuarterNote);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(PulsesPerQuarterNote);
         }
     }
 
@@ -1998,15 +1999,15 @@ namespace bmparse.bms
             return ($"RETURN {Condition:X}h");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
             Condition = read.ReadByte();
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
-            write.Write(Condition);
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Condition);
         }
     }
 
@@ -2022,14 +2023,14 @@ namespace bmparse.bms
             return ($"RETIMM");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
 
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
+            write.WriteBE((byte)CommandType);
         }
     }
 
@@ -2045,14 +2046,14 @@ namespace bmparse.bms
             return ($"FINISH");
         }
 
-        public override void read(BeBinaryReader read)
+        public override void read(bgReader read)
         {
 
         }
 
-        public override void write(BeBinaryWriter write)
+        public override void write(bgWriter write)
         {
-            write.Write((byte)CommandType);
+            write.WriteBE((byte)CommandType);
         }
     }
 }

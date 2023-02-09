@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Be.IO;
+using xayrga;
+using xayrga.byteglider;
 
 namespace bmparse
 {
@@ -18,7 +19,7 @@ namespace bmparse
             public short Value;
         }
 
-        private void loadFromStream(BeBinaryReader reader)
+        private void loadFromStream(bgReader reader)
         {
             var origPos = reader.BaseStream.Position;
             int count = 0;
@@ -31,15 +32,15 @@ namespace bmparse
             reader.BaseStream.Position = origPos;
             points = new JEnvelopeVector[count];
             for (int i = 0; i < count; i++)
-                points[i] = new JEnvelopeVector { Mode = reader.ReadUInt16(), Delay = reader.ReadUInt16(), Value = reader.ReadInt16() };
+                points[i] = new JEnvelopeVector { Mode = reader.ReadUInt16BE(), Delay = reader.ReadUInt16BE(), Value = reader.ReadInt16BE() };
         }
-        public static JInstrumentEnvelopev1 CreateFromStream(BeBinaryReader reader)
+        public static JInstrumentEnvelopev1 CreateFromStream(bgReader reader)
         {
             var b = new JInstrumentEnvelopev1();
             b.loadFromStream(reader);
             return b;
         }
-        public void WriteToStream(BeBinaryWriter wr)
+        public void WriteToStream(bgWriter wr)
         {
             var remainingLength = 32;
             for (int i = 0; i < points.Length; i++)
@@ -52,7 +53,7 @@ namespace bmparse
             if (remainingLength > 0)
                 wr.Write(new byte[remainingLength]);
             else
-                util.padTo(wr, 32);
+                wr.Pad();
 
         }
     }

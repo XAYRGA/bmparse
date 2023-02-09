@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-
-namespace bmparse
+namespace xayrga.cmdl
 {
-    public static class util
+    internal class consoleHelpers
     {
         public static bool consoleProgress_quiet = false;
         public static void consoleProgress(string txt, int progress, int max, bool show_progress = false)
@@ -16,7 +15,6 @@ namespace bmparse
                 return;
             var flt_total = (float)progress / max;
             Console.CursorLeft = 0;
-            //Console.WriteLine(flt_total);
             Console.Write($"{txt} [");
             for (float i = 0; i < 32; i++)
                 if (flt_total > (i / 32f))
@@ -27,7 +25,5 @@ namespace bmparse
             if (show_progress)
                 Console.Write($" ({progress}/{max})");
         }
-  
-
     }
 }

@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Be.IO;
+using xayrga;
+using xayrga.byteglider;
+
 
 namespace bmparse.bms
 {
@@ -72,7 +74,7 @@ namespace bmparse.bms
             OpcodeToClass[(byte)BMSCommandType.PARAM_SUBTRACT] = typeof(ParameterSubtract);
         }
 
-        public bmscommand readNextCommand(BeBinaryReader reader)
+        public bmscommand readNextCommand(bgReader reader)
         {
             var origAddress = reader.BaseStream.Position;
             var opcode = reader.ReadByte();
