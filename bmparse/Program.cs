@@ -12,16 +12,16 @@ public static class Program
         var binaryReader = new bgReader(fileStream);
 
         Queue<int[]> ohno = new Queue<int[]>();
-        var categoryStops = new int[]
+        var StopHints  = new int[]
         {
-            0x660,
+            0x294,
             0x13E3,
             0x3F7B,
             0x5FAD,
             0x675E,
             0xFFFFFFF
         };
-
+        
         var categorySizes = new int[]
         {
             -1,
@@ -34,7 +34,8 @@ public static class Program
 
         binaryReader.SavePosition("ROOT_OPEN");
 
-        var WLF = new bmparse.BMSDisassembler(binaryReader);
+        var WLF = new bmparse.BMSLinkageAnalyzer(binaryReader);
+        WLF.Analyze();
         
     }
 }
