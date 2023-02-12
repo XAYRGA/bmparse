@@ -38,10 +38,12 @@ namespace bmparse
                 inc = new AddressReferenceInfo()
                 {
                     Type = type,
+                    SourceAddress = src
                 };
             inc.Depth = depth;
             inc.Address = addr;
             inc.RefCount++;
+            
             inc.ReferenceStackSources.Add(src);
             AddressReferenceAccumulator[addr] = inc;
             return inc;
@@ -97,7 +99,7 @@ namespace bmparse
         }
 
 
-        public void Analyze(long src = 0, int depth = 0)
+        public void Analyze(long src , int depth,  ReferenceType currentType )
         {
 
             Stack<AddressReferenceInfo> toAnalyze = new Stack<AddressReferenceInfo>();
@@ -106,7 +108,7 @@ namespace bmparse
             if (AddressReferenceAccumulator.ContainsKey(src))
                 bb = AddressReferenceAccumulator[src];
             
-            Console.WriteLine($"{new string('-',depth)} {src:X} ({(bb==null ? "UNREF" : bb.Type)}) ");
+            //Console.WriteLine($"{new string('-',depth)} {src:X} ({(bb==null ? "UNREF" : bb.Type)}) ");
 
             bool STOP = false; 
             while (true)
@@ -189,33 +191,39 @@ namespace bmparse
                 reader.PushAnchor();
                 var addrInfo = toAnalyze.Pop();
 
-
-    
                 switch (addrInfo.Type)
                 {
                     case ReferenceType.JUMPTABLE:
                     case ReferenceType.CALLTABLE:
                         Position = addrInfo.Address;
-
                         // Need to unroll table into the data!
                         var entries = guesstimateJumptableSize();
-                        Console.WriteLine($"{new string('-', depth)} CALLTABLE");
+                        //Console.WriteLine($"{new string('-', depth)} CALLTABLE");
                         for (int i=0; i < entries.Length; i++)
                         {
-                           
                             var AddressRefInfo = referenceAddress(entries[i], addrInfo.Type==ReferenceType.CALLTABLE ? ReferenceType.CALLFROMTABLE : ReferenceType.JUMP, src, depth + 1);
                             if (!travelHistory.ContainsKey(addrInfo.Address))
-                                toAnalyze.Push(AddressRefInfo);
-     
+                                toAnalyze.Push(AddressRefInfo);     
                         }
-
+                        break;
+                    case ReferenceType.TRACK:
+                        Position = addrInfo.Address;
+                        if (!travelHistory.ContainsKey(Position))
+                            if (currentType==ReferenceType.CALLFROMTABLE)
+                                Analyze(src, addrInfo.Depth + 1, addrInfo.Type);
+                            else
+                                Analyze(Position, addrInfo.Depth + 1, addrInfo.Type);
+                        break;
+                    case ReferenceType.CALLFROMTABLE:
+                        Position = addrInfo.Address;
+                        if (!travelHistory.ContainsKey(Position))
+                            Analyze(Position, addrInfo.Depth + 1, addrInfo.Type);
                         break;
                     default:
                         Position = addrInfo.Address;
 
                         if (!travelHistory.ContainsKey(Position))
-                            Analyze(Position, addrInfo.Depth + 1);
-
+                            Analyze(src, addrInfo.Depth + 1, addrInfo.Type);
                         break;
                 }
 

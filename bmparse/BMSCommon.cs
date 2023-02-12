@@ -9,6 +9,7 @@ namespace bmparse
 
     public enum ReferenceType
     {
+        ROOT = 0,
         CALL = 1,
         JUMP = 2,
         INTERRUPT = 3,
