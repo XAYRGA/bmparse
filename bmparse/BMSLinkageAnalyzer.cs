@@ -147,7 +147,11 @@ namespace bmparse
                         break;
                     case BMSCommandType.JMP:
                         var jmp = (Jump)command ;
-                        AddressRefInfo = referenceAddress(jmp.Address, ReferenceType.JUMP, src, depth);
+                        if (travelHistory.ContainsKey(jmp.Address))
+                            AddressRefInfo = referenceAddress(jmp.Address, ReferenceType.LEADIN, src, depth);
+                        else
+                            AddressRefInfo = referenceAddress(jmp.Address, ReferenceType.JUMP, src, depth);
+
                         toAnalyze.Push(AddressRefInfo);
                         if (jmp.Flags == 0) // We need to separate from this address because it's jumped into a new scope.
                             STOP = true;
@@ -196,7 +200,7 @@ namespace bmparse
                     case ReferenceType.JUMPTABLE:
                     case ReferenceType.CALLTABLE:
                         Position = addrInfo.Address;
-                        // Need to unroll table into the data!
+                        // Need to unroll table into the addrinfo!
                         var entries = guesstimateJumptableSize();
                         //Console.WriteLine($"{new string('-', depth)} CALLTABLE");
                         for (int i=0; i < entries.Length; i++)

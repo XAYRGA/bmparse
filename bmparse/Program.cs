@@ -13,32 +13,18 @@ namespace bmparse {
             var binaryReader = new bgReader(fileStream);
 
             Queue<int[]> ohno = new Queue<int[]>();
-            var StopHints = new int[]
-            {
-            0x294,
-            0x13E3,
-            0x3F7B,
-            0x5FAD,
-            0x675E,
-            0xFFFFFFF
-            };
-
-            var categorySizes = new int[]
-            {
-            -1,
-            -1,
-            -1,
-            42,
-            -1,
-            -1
-            };
-
+  
             binaryReader.SavePosition("ROOT_OPEN");
-
             var WLF = new bmparse.BMSLinkageAnalyzer(binaryReader);
             WLF.Analyze(0, 0, ReferenceType.ROOT);
-
             var LinkageInfo = WLF.AddressReferenceAccumulator;
+
+
+            binaryReader.GoPosition("ROOT_OPEN");
+            var WL2 = new bmparse.SEBMSDisassembler(binaryReader,LinkageInfo);
+            WL2.BuildGlobalLabelsFromLinkInfo();
+
+            /*
             foreach (KeyValuePair<long,AddressReferenceInfo> iter in LinkageInfo)
             {
                 AddressReferenceInfo RefInfo = iter.Value;
@@ -66,8 +52,8 @@ namespace bmparse {
                     }
                 }
             }
+            */
 
-              
 
         }
     }
