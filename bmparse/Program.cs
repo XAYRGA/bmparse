@@ -9,7 +9,7 @@ namespace bmparse {
     {
         static void Main()
         {
-            var fileStream = File.OpenRead("luigise.bms");
+            var fileStream = File.OpenRead("forest.bms");
             var binaryReader = new bgReader(fileStream);
 
             Queue<int[]> ohno = new Queue<int[]>();
@@ -20,9 +20,9 @@ namespace bmparse {
             var LinkageInfo = WLF.AddressReferenceAccumulator;
 
 
-            binaryReader.GoPosition("ROOT_OPEN");
-            var WL2 = new bmparse.SEBMSDisassembler(binaryReader,LinkageInfo);
-            WL2.BuildGlobalLabelsFromLinkInfo();
+            //binaryReader.GoPosition("ROOT_OPEN");
+            //var WL2 = new bmparse.SEBMSDisassembler(binaryReader,LinkageInfo);
+            //WL2.BuildGlobalLabelsFromLinkInfo();
 
             /*
             foreach (KeyValuePair<long,AddressReferenceInfo> iter in LinkageInfo)
