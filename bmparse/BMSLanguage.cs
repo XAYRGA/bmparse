@@ -584,6 +584,34 @@ namespace bmparse.bms
         }
     }
 
+
+    public class InterruptTimer : bmscommand
+    {
+        public uint TimerData;
+
+
+        public InterruptTimer()
+        {
+            CommandType = BMSCommandType.INTTIMER;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"INTTIME {TimerData:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            TimerData = read.ReadUInt24BE();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(TimerData, true);
+        }
+    }
+
     public class  OpOverride4 : bmscommand
     {
         public byte Instruction;
@@ -607,22 +635,38 @@ namespace bmparse.bms
         {
             Instruction = read.ReadByte();
             ArgumentMask = read.ReadByte();
+
+            var maskLookupSize = 0;
+            var argMskCopy = ArgumentMask;
+            while (argMskCopy > 0)
+                maskLookupSize += ((argMskCopy >>= 1) & 1);
+          
+
+
             var stupid_size = 0;
             // todo: get your free hardcoded sizes
             // fuck you , by the way. 
             switch (Instruction)
             {
+                case 0xD8:
+                    stupid_size = 9;
+                    break;
                 default:
-                    throw new Exception($"oof 0x{Instruction:X}");
+                    throw new Exception($"oof {read.BaseStream.Position:X} 0x{Instruction:X}");
             }
+
+       
+
+            ArgumentMaskLookup = new byte[maskLookupSize]; // fuck this in particular
+            for (int i = 0; i < maskLookupSize; i++)
+                ArgumentMaskLookup[i] = read.ReadByte();
+
+
             Stupid = new byte[stupid_size];
-            ArgumentMaskLookup = new byte[4] // fuck this in particular
-            {
-                  read.ReadByte(),
-                  read.ReadByte(), 
-                  read.ReadByte(),
-                  read.ReadByte(),
-            };
+
+            for (int i=0; i < stupid_size; i++)
+                Stupid[i] = read.ReadByte();
+
         }
 
 
@@ -658,23 +702,40 @@ namespace bmparse.bms
         {
             Instruction = read.ReadByte();
             ArgumentMask = read.ReadByte();
+
+            //Console.WriteLine($"CRINGE CRINGE CRINGE!!!! {Instruction:X}  {read.BaseStream.Position:X}") ;
+            var maskLookupSize = 0;
+            var argMskCopy = ArgumentMask;
+            while (argMskCopy > 0)
+                maskLookupSize += ((argMskCopy >>= 1) & 1);
+
             var stupid_size = 0;
             // todo: get your free hardcoded sizes
+            // fuck you , by the way. 
             switch (Instruction)
             {
-                case 0xC9:
+                case 0xD8:
+                    stupid_size = 9;
+                    break;
                 case 0xD4:
-                    stupid_size = 1;
+                    stupid_size = 3;
+                    break;
+                case 0xC9:
+                    stupid_size = 0;
                     break;
                 default:
-                    throw new Exception($"oof 0x{Instruction:X}");
+                    throw new Exception($"oof {read.BaseStream.Position:X} 0x{Instruction:X}");
             }
+
+            ArgumentMaskLookup = new byte[maskLookupSize]; // fuck this in particular
+            for (int i = 0; i < maskLookupSize; i++)
+                ArgumentMaskLookup[i] = read.ReadByte();
+
+
             Stupid = new byte[stupid_size];
-            ArgumentMaskLookup = new byte[1]
-            {
-                  read.ReadByte(),
-    
-            };
+            for (int i = 0; i < stupid_size; i++)
+                Stupid[i] = read.ReadByte();
+
         }
 
 
@@ -1620,6 +1681,35 @@ namespace bmparse.bms
         {
             Source = read.ReadByte();
             Value = read.ReadByte();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Value);
+        }
+    }
+
+    public class ParameterCompare16 : bmscommand
+    {
+        public byte Source;
+        public short Value;
+
+        public ParameterCompare16()
+        {
+            CommandType = BMSCommandType.PARAM_CMP_16;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"CMP16 {Source:X}h {Value:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Source = read.ReadByte();
+            Value = read.ReadInt16BE();
         }
 
         public override void write(bgWriter write)

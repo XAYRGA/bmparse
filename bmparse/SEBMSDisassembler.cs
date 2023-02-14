@@ -6,11 +6,14 @@ using System.Threading.Tasks;
 using xayrga;
 using xayrga.byteglider;
 using bmparse.bms;
+using Newtonsoft.Json;
 
 namespace bmparse
 {
     internal class SEBMSDisassembler
     {
+
+        public SEBMSProject Project;
 
         public Dictionary<long, AddressReferenceInfo> LinkData = new Dictionary<long, AddressReferenceInfo>();
 
@@ -29,6 +32,7 @@ namespace bmparse
 
         bgReader reader;
 
+        public string ProjFolder = "lm_out";
 
         StringBuilder output = new StringBuilder();
 
@@ -40,6 +44,8 @@ namespace bmparse
             GlobalLabels.Clear();
             labelLocalAccumulator.Clear();
             labelGlobalAccumulator.Clear();
+
+         
 
         }
 
@@ -96,6 +102,121 @@ namespace bmparse
             return exRefCnt;
         }
 
+        private void wOut(string ou)
+        {
+            output.AppendLine(ou);
+        }
+
+        private void flushOutput(string file)
+        {
+            var str = output.ToString();
+            File.WriteAllText(file, str);
+        }
+
+        private void resetOutput()
+        {
+            output = new StringBuilder();
+        }
+
+        public void Disassemble(string ProjFolder)
+        {
+
+            Project = new SEBMSProject();
+         
+
+            BuildGlobalLabelsFromLinkInfo();
+
+            this.ProjFolder = ProjFolder;
+         
+            Directory.CreateDirectory($"{ProjFolder}");
+            Directory.CreateDirectory($"{ProjFolder}/cat");
+            Directory.CreateDirectory($"{ProjFolder}/common");
+            Directory.CreateDirectory($"{ProjFolder}/sounds/");
+
+            D_DisassembleCategories();
+            D_DisassembleCommon();
+
+            File.WriteAllText($"{ProjFolder}/project.json",JsonConvert.SerializeObject(Project,Formatting.Indented));
+        }
+        private void D_DisassembleCategories()
+        {
+     
+            var catNum = 0;
+
+            Project.CategoryLogics = new string[categoryAddresses.Count];
+
+            while (categoryAddresses.Count > 0)
+            {
+                resetOutput();
+                var AddrInfo = categoryAddresses.Dequeue();
+                LocalLabels.Clear();
+                labelLocalAccumulator.Clear();
+                switch (AddrInfo.Type)
+                {
+                    default:
+                        reader.BaseStream.Position = AddrInfo.Address;
+                        var name = AddrInfo.Name;
+                        DisassembleRoutine(AddrInfo, AddrInfo.Name);
+                        flushOutput($"{ProjFolder}/cat/{name}.txt");
+                        Project.CategoryLogics[catNum] = $"cat/{name}.txt";
+                        break;
+                }
+                catNum++;
+            }
+        }
+
+        private void D_DisassembleCommon()
+        {
+
+            Project.CommonLib = new string[commonAddresses.Count + 1];
+            var comNum = 0;
+            while (commonAddresses.Count > 0)
+            {
+
+                resetOutput();
+                var AddrInfo = commonAddresses.Dequeue();
+                LocalLabels.Clear();
+                labelLocalAccumulator.Clear();
+                switch (AddrInfo.Type)
+                {
+                    case ReferenceType.ENVELOPE:
+                        wOut(getBanner(AddrInfo.Name));
+                        reader.BaseStream.Position = AddrInfo.Address;
+                        DisassembleEnvelope();
+                        flushOutput($"{ProjFolder}/common/{AddrInfo.Name}.txt");
+                        Project.CommonLib[comNum] = $"cat/{AddrInfo.Name}.txt";
+                        break;
+                    default:
+                        reader.BaseStream.Position = AddrInfo.Address;
+                        DisassembleRoutine(AddrInfo, AddrInfo.Name);
+                        flushOutput($"{ProjFolder}/common/{AddrInfo.Name}.txt");
+                        Project.CommonLib[comNum] = $"cat/{AddrInfo.Name}.txt";
+                        break;
+                }
+
+                comNum++;
+            }
+        }
+
+
+        private void DisassembleEnvelope()
+        {
+            if (LinkData.ContainsKey(reader.BaseStream.Position))
+            {
+                var ld = LinkData[reader.BaseStream.Position];
+                bool nBool = false;
+                wOut(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
+            }
+
+            var env = JInstrumentEnvelopev1.CreateFromStream(reader);
+            for (int i = 0; i < env.points.Length; i++)
+            {
+                var point = env.points[i];
+                wOut($"ENVPOINT {point.Mode} {point.Delay} {point.Value}");
+            }
+
+            wOut("STOP #Envelope Termination");
+        }
 
         private string getLabelGeneric(string type, long address, out bool newCreated, string prm = null)
         {
@@ -121,9 +242,15 @@ namespace bmparse
             {
                 if (LinkData.ContainsKey(reader.BaseStream.Position))
                 {
+                 
                     var ld = LinkData[reader.BaseStream.Position];
-                    bool nBool = false;
-                    Console.WriteLine(":" + getLabelGeneric(ld.Type.ToString(),ld.Address, out nBool));
+                    if (ld.SourceAddress != RefInfo.SourceAddress)
+                        wOut(":" + getGlobalLabel("LEADIN", reader.BaseStream.Position, "COMMON")); // I think sunshine did this...
+                    else
+                    {
+                        bool nBool = false;
+                        wOut(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
+                    }
                 }
 
                 traveled[reader.BaseStream.Position] = 1;
@@ -166,7 +293,6 @@ namespace bmparse
                             bool newCreated = false;
                             var trkOpen = (OpenTrack)command;
                             line = trkOpen.getAssemblyString(new string[] { getLabelGeneric("OPENTRACK", trkOpen.Address, out newCreated) });
-
                             if (newCreated)
                                 LocalReference.Enqueue(LinkData[trkOpen.Address]);
                         }
@@ -198,7 +324,7 @@ namespace bmparse
                         line = command.getAssemblyString();
                         break;
                 }
-                Console.WriteLine(line);
+                wOut(line);
                 if (STOP)
                     break;
             }
@@ -209,7 +335,6 @@ namespace bmparse
                 if (!traveled.ContainsKey(rf.Address))
                     DisassembleRoutine(rf);
             }
-     
         }
         
 
@@ -260,42 +385,6 @@ namespace bmparse
                 }
             }
 
-
-            while (categoryAddresses.Count > 0)
-            {
-                var AddrInfo = categoryAddresses.Dequeue();
-                LocalLabels.Clear();
-                labelLocalAccumulator.Clear();
-                switch (AddrInfo.Type)
-                {
-                    default:
-                        reader.BaseStream.Position = AddrInfo.Address;
-                        DisassembleRoutine(AddrInfo, AddrInfo.Name);
-                        break;
-                }
-                Console.WriteLine("=======================\r\n\r\n");
-            }
-
-
-
-            while (commonAddresses.Count > 0)
-            {
-                var AddrInfo = commonAddresses.Dequeue();
-                LocalLabels.Clear();
-                labelLocalAccumulator.Clear();
-                switch (AddrInfo.Type)
-                {
-                    case ReferenceType.ENVELOPE:
-                        break;
-                    default:
-                        reader.BaseStream.Position = AddrInfo.Address;
-                        DisassembleRoutine(AddrInfo, AddrInfo.Name);
-                        break;
-                }
-                Console.WriteLine("=======================\r\n\r\n");
-            }
-
-       
         }
     }
 }

@@ -23,11 +23,12 @@ namespace bmparse
         {
             var origPos = reader.BaseStream.Position;
             int count = 0;
-            while (reader.ReadUInt16() < 0xB)
+            while (reader.ReadUInt16BE() < 0xB)
             {
-                reader.ReadUInt32();
+                reader.ReadUInt32BE();
                 count++;
             }
+
             count++;
             reader.BaseStream.Position = origPos;
             points = new JEnvelopeVector[count];

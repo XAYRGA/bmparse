@@ -43,6 +43,7 @@ namespace bmparse.bms
             OpcodeToClass[(byte)BMSCommandType.SIMPLEADSR] = typeof(SimpleADSR);
             OpcodeToClass[(byte)BMSCommandType.CLRI] = typeof(ClearInterrupt);
             OpcodeToClass[(byte)BMSCommandType.RETI] = typeof(ReturnInterrupt);
+            OpcodeToClass[(byte)BMSCommandType.INTTIMER] = typeof(InterruptTimer);
             OpcodeToClass[(byte)BMSCommandType.FLUSHALL] = typeof(FlushAll);
             OpcodeToClass[(byte)BMSCommandType.READPORT] = typeof(ReadPort);
             OpcodeToClass[(byte)BMSCommandType.WRITEPORT] = typeof(WritePort);
@@ -59,6 +60,7 @@ namespace bmparse.bms
             OpcodeToClass[(byte)BMSCommandType.PARAM_ADD_8] = typeof(ParameterAdd8);
             OpcodeToClass[(byte)BMSCommandType.PARAM_MUL_8] = typeof(ParameterMultiply8);
             OpcodeToClass[(byte)BMSCommandType.PARAM_CMP_8] = typeof(ParameterCompare8);
+            OpcodeToClass[(byte)BMSCommandType.PARAM_CMP_16] = typeof(ParameterCompare16);
             OpcodeToClass[(byte)BMSCommandType.PARAM_CMP_R] = typeof(ParameterCompareRegister);
             OpcodeToClass[(byte)BMSCommandType.SETPARAM_90] = typeof(ParameterSet8_90);
             OpcodeToClass[(byte)BMSCommandType.SETPARAM_92] = typeof(ParameterSet16_92);

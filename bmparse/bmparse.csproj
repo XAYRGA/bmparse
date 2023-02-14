@@ -8,4 +8,8 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="newtonsoft.json" Version="13.0.2" />
+  </ItemGroup>
+
 </Project>
