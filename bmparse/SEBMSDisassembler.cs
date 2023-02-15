@@ -36,6 +36,12 @@ namespace bmparse
 
         StringBuilder output = new StringBuilder();
 
+        public int[] StopHints = new int[0];
+
+        public Dictionary<long, long> CodePageMapping = new Dictionary<long, long>();
+       
+        List<int[]> CategoryTableAddrs = new List<int[]>();
+
         public SEBMSDisassembler(bgReader reader, Dictionary<long, AddressReferenceInfo> linkData)
         {
             this.reader = reader;
@@ -88,22 +94,30 @@ namespace bmparse
 
         private int getExternalReferenceCount(AddressReferenceInfo addrInfo)
         {
-            var exRefCnt = -1;
-            var exRefLA = 0L;
+            var exRefCount = -1;
+            var exRefLastAddress = 0L;
             for (int i = 0; i < addrInfo.ReferenceStackSources.Count; i++)
             {
                 var RSS = addrInfo.ReferenceStackSources[i];
-                if (RSS != exRefLA)
+
+                if (RSS != exRefLastAddress)
                 {
-                    exRefLA = RSS;
-                    exRefCnt++;
+                    exRefLastAddress = RSS;
+                    exRefCount++;
                 }
             }
-            return exRefCnt;
+
+            //if (addrInfo.Type!=ReferenceType.CALLTABLE && addrInfo.Type!=ReferenceType.ENVELOPE && CodePageMapping[addrInfo.Address] != CodePageMapping[addrInfo.SourceAddress])
+            //    exRefCount++;
+
+
+
+            return exRefCount;
         }
 
         private void wOut(string ou)
         {
+            //Console.WriteLine(ou)
             output.AppendLine(ou);
         }
 
@@ -118,16 +132,22 @@ namespace bmparse
             output = new StringBuilder();
         }
 
+        private void resetLocalScope()
+        {
+            LocalLabels.Clear();
+            labelLocalAccumulator.Clear();
+        }
+
         public void Disassemble(string ProjFolder)
         {
 
             Project = new SEBMSProject();
-         
+
 
             BuildGlobalLabelsFromLinkInfo();
 
             this.ProjFolder = ProjFolder;
-         
+
             Directory.CreateDirectory($"{ProjFolder}");
             Directory.CreateDirectory($"{ProjFolder}/cat");
             Directory.CreateDirectory($"{ProjFolder}/common");
@@ -135,34 +155,145 @@ namespace bmparse
 
             D_DisassembleCategories();
             D_DisassembleCommon();
+            D_DisassembleSounds();
 
-            File.WriteAllText($"{ProjFolder}/project.json",JsonConvert.SerializeObject(Project,Formatting.Indented));
+            reader.GoPosition("ROOT_OPEN");
+
+            resetLocalScope();
+            resetOutput();
+            wOut(getBanner("ROOT\n#SEBS By Xayrga!"));
+            DisassembleRoutine(new AddressReferenceInfo() {
+                Address = 0,
+                Depth = 0,
+                ReferenceStackSources = { 
+                    1,
+                    2,
+                    3,
+                    69, 
+                    420 }, 
+                MetaData = 0, 
+                Name = "ROOT", 
+                ImplicitCallTermination = true, 
+                RefCount = 50000, 
+                SourceAddress = 0,
+                SourceStack = 0 });
+
+            Project.InitSection = "init.txt";
+            flushOutput($"{ProjFolder}/init.txt");
+
+            File.WriteAllText($"{ProjFolder}/project.json", JsonConvert.SerializeObject(Project, Formatting.Indented));
+
+
         }
+
+
+
+        private void D_DisassembleSounds()
+        {
+                
+            Dictionary<long, string> filesAtAddress = new Dictionary<long, string>();
+            for (int i=0; i < CategoryTableAddrs.Count; i++)
+            {
+                var projCat = Project.SoundLists[i];
+
+                Directory.CreateDirectory($"{ProjFolder}/sounds/{i}");
+                var ls = CategoryTableAddrs[i];
+
+                projCat.Sounds = new string[ls.Length];
+
+                for (int x=0; x < ls.Length; x++)
+                {
+
+                    xayrga.cmdl.consoleHelpers.consoleProgress($"Category {i} Extracting sounds", x + 1, ls.Length, true);
+                    if (filesAtAddress.ContainsKey(ls[x]))
+                    {
+                        projCat.Sounds[x] = filesAtAddress[ls[x]];
+                        continue;
+                    }
+
+                    resetLocalScope();
+                    resetOutput();
+                    reader.BaseStream.Position = ls[x];
+                    var ld = LinkData[reader.BaseStream.Position];
+             
+                    DisassembleRoutine(ld, false, true);
+                    var filename = $"sounds/{i}/{x}.txt";
+                    projCat.Sounds[x] = filename;
+                    flushOutput($"{ProjFolder}/{filename}");
+                    filesAtAddress[ls[x]] = filename;
+
+                }
+                Console.WriteLine();
+            }               
+        }
+
+
         private void D_DisassembleCategories()
         {
      
             var catNum = 0;
-
             Project.CategoryLogics = new string[categoryAddresses.Count];
-
+            Project.SoundLists = new SEBMSProjectCategory[categoryAddresses.Count];
+           
             while (categoryAddresses.Count > 0)
             {
+                xayrga.cmdl.consoleHelpers.consoleProgress("Decompiling categories...", catNum + 1, Project.SoundLists.Length,true);
+               
+                Project.SoundLists[catNum] = new SEBMSProjectCategory();
                 resetOutput();
                 var AddrInfo = categoryAddresses.Dequeue();
-                LocalLabels.Clear();
-                labelLocalAccumulator.Clear();
+                resetLocalScope();
                 switch (AddrInfo.Type)
                 {
                     default:
                         reader.BaseStream.Position = AddrInfo.Address;
                         var name = AddrInfo.Name;
-                        DisassembleRoutine(AddrInfo, AddrInfo.Name);
+                        int[] soundS = DisassembleRoutine(AddrInfo,true);
+                        CategoryTableAddrs.Add(soundS);
                         flushOutput($"{ProjFolder}/cat/{name}.txt");
                         Project.CategoryLogics[catNum] = $"cat/{name}.txt";
+                  
                         break;
                 }
                 catNum++;
             }
+            Console.WriteLine();
+        }
+
+
+        private bool checkStopHint(long pos)
+        {
+
+            foreach (int p in StopHints)
+                if (p != 0 && p == pos)
+                    return true;
+            return false;
+        }
+
+        private int[] guesstimateJumptableSize()
+        {
+            Queue<int> addrtable = new Queue<int>();
+            while (true)
+            {
+                if (checkStopHint(reader.BaseStream.Position)) // does hint data say we should stop?
+                    break;
+
+                var address = (int)reader.ReadUInt24BE();
+
+                if ((address >> 16) > 0x20) // oops, magic number
+                    break;
+
+                addrtable.Enqueue(address);
+            }
+            var ret = new int[addrtable.Count];
+            var i = 0;
+            // Unroll Queue: Need to preserve order!            
+            while (addrtable.Count > 0)
+            {
+                ret[i] = addrtable.Dequeue();
+                i++;
+            }
+            return ret;
         }
 
         private void D_DisassembleCommon()
@@ -175,8 +306,7 @@ namespace bmparse
 
                 resetOutput();
                 var AddrInfo = commonAddresses.Dequeue();
-                LocalLabels.Clear();
-                labelLocalAccumulator.Clear();
+                resetLocalScope();
                 switch (AddrInfo.Type)
                 {
                     case ReferenceType.ENVELOPE:
@@ -188,7 +318,7 @@ namespace bmparse
                         break;
                     default:
                         reader.BaseStream.Position = AddrInfo.Address;
-                        DisassembleRoutine(AddrInfo, AddrInfo.Name);
+                        DisassembleRoutine(AddrInfo);
                         flushOutput($"{ProjFolder}/common/{AddrInfo.Name}.txt");
                         Project.CommonLib[comNum] = $"cat/{AddrInfo.Name}.txt";
                         break;
@@ -232,25 +362,36 @@ namespace bmparse
         }
 
         
-        private void DisassembleRoutine(AddressReferenceInfo RefInfo, string stackname = "SOUND" )
+        private int[] DisassembleRoutine(AddressReferenceInfo RefInfo, bool isCategory = false, bool skipFirstLabel = false )
         {
             var LocalReference = new Queue<AddressReferenceInfo>();
 
+
+     
+            int[] ret = null;
             bool STOP = false;
             string line = "";
+            bool skpFst = skipFirstLabel;
             while (true)
             {
-                if (LinkData.ContainsKey(reader.BaseStream.Position))
+                if (skpFst == false)
                 {
-                 
-                    var ld = LinkData[reader.BaseStream.Position];
-                    if (ld.SourceAddress != RefInfo.SourceAddress)
-                        wOut(":" + getGlobalLabel("LEADIN", reader.BaseStream.Position, "COMMON")); // I think sunshine did this...
-                    else
+                    if (LinkData.ContainsKey(reader.BaseStream.Position))
                     {
-                        bool nBool = false;
-                        wOut(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
+                        var ld = LinkData[reader.BaseStream.Position];
+                        if (ld.SourceAddress != RefInfo.SourceAddress)
+                        {
+                            //Console.WriteLine($"{ld.SourceAddress:X} {RefInfo.SourceAddress}");
+                            wOut(":@" + getGlobalLabel("LEADIN", reader.BaseStream.Position, "INLINE")); // I think sunshine did this...
+                           // Console.WriteLine(":@" + getGlobalLabel("LEADIN", reader.BaseStream.Position, "INLINE"));
+                        }
+                        else
+                        {
+                            bool nBool = false;
+                            wOut(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
+                        }
                     }
+                    skpFst = false;
                 }
 
                 traveled[reader.BaseStream.Position] = 1;
@@ -273,7 +414,19 @@ namespace bmparse
                         }
                         else
                         {
-                                            
+                            if (isCategory)
+                            {
+                                reader.PushAnchor();
+                                reader.BaseStream.Position = call.Address;
+                                ret = guesstimateJumptableSize();
+                                reader.PopAnchor();
+                                line = "%CATEGORY_CALLTABLE";
+                            }  else
+                            {
+                                bool newCreated = false;
+                                LocalReference.Enqueue(LinkData[call.Address]);
+                                line = "CALLTABLE " + getLabelGeneric("CALLTABLE", call.Address, out newCreated);
+                            }                 
                         }
                         break;
                     case BMSCommandType.JMP:
@@ -292,6 +445,7 @@ namespace bmparse
                         {
                             bool newCreated = false;
                             var trkOpen = (OpenTrack)command;
+
                             line = trkOpen.getAssemblyString(new string[] { getLabelGeneric("OPENTRACK", trkOpen.Address, out newCreated) });
                             if (newCreated)
                                 LocalReference.Enqueue(LinkData[trkOpen.Address]);
@@ -331,10 +485,22 @@ namespace bmparse
             while (LocalReference.Count > 0)
             {
                 var rf = LocalReference.Dequeue();
-                reader.BaseStream.Position = rf.Address;
-                if (!traveled.ContainsKey(rf.Address))
-                    DisassembleRoutine(rf);
+                if (rf.Type != ReferenceType.CALLTABLE)
+                {
+                    reader.BaseStream.Position = rf.Address;
+                    if (!traveled.ContainsKey(rf.Address))
+                    {
+                        var vrf = DisassembleRoutine(rf, isCategory);
+                        if (vrf != null)
+                            ret = vrf;
+                    }  
+                } else
+                {
+                    throw new Exception("Nested calltable not supported.");
+                }
             }
+  
+            return ret;
         }
         
 
@@ -382,7 +548,7 @@ namespace bmparse
                             //commonAddresses.Push(RefInfo);
                             break;
                     }
-                }
+                }                 
             }
 
         }

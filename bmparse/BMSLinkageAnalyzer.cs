@@ -18,6 +18,8 @@ namespace bmparse
 
         public Dictionary<long, AddressReferenceInfo> AddressReferenceAccumulator = new Dictionary<long, AddressReferenceInfo>();
         public Dictionary<long, int> travelHistory = new Dictionary<long, int>();
+        public Dictionary<long, long> CodePageMapping = new Dictionary<long, long>();
+
         public List<long> Analyzed = new List<long>();
        
         public int[] StopHints = new int[0];
@@ -120,7 +122,7 @@ namespace bmparse
 
                 // Store history position.
                 travelHistory[Position] = 1;
-
+                CodePageMapping[Position] = src;
                 var command = commandFactory.readNextCommand(reader);
 
                // Console.WriteLine($"{new string('-', depth)} {command.CommandType} ");
@@ -216,7 +218,7 @@ namespace bmparse
                             if (currentType==ReferenceType.CALLFROMTABLE)
                                 Analyze(src, addrInfo.Depth + 1, addrInfo.Type);
                             else
-                                Analyze(Position, addrInfo.Depth + 1, addrInfo.Type);
+                                Analyze(src, addrInfo.Depth + 1, addrInfo.Type);
                         break;
                     case ReferenceType.CALLFROMTABLE:
                         Position = addrInfo.Address;

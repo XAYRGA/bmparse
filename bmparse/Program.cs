@@ -22,6 +22,7 @@ namespace bmparse {
 
             binaryReader.GoPosition("ROOT_OPEN");
             var WL2 = new bmparse.SEBMSDisassembler(binaryReader,LinkageInfo);
+            WL2.CodePageMapping = WLF.CodePageMapping;
             WL2.Disassemble("lm2");
 
             /*

@@ -379,6 +379,10 @@ namespace bmparse.bms
 
         public override string getAssemblyString(string[] data = null)
         {
+            if (TargetParameter==6)
+            {
+                return ($"SET_BANK_INS {Value>>8} {Value & 0xFF}");
+            }
             return ($"PARAM16 {TargetParameter:X}h {Value}");
         }
 
