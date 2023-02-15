@@ -115,7 +115,7 @@ namespace bmparse
             return exRefCount;
         }
 
-        private void wOut(string ou)
+        private void D_Out(string ou)
         {
             //Console.WriteLine(ou)
             output.AppendLine(ou);
@@ -127,31 +127,30 @@ namespace bmparse
             File.WriteAllText(file, str);
         }
 
-        private void resetOutput()
+        private void D_resetOutput()
         {
             output = new StringBuilder();
         }
 
-        private void resetLocalScope()
+        private void L_resetLocalScope()
         {
             LocalLabels.Clear();
             labelLocalAccumulator.Clear();
         }
 
-        public void Disassemble(string ProjFolder)
+        public void Disassemble(string SynthsAreSubbies)
         {
 
             Project = new SEBMSProject();
 
-
             BuildGlobalLabelsFromLinkInfo();
 
-            this.ProjFolder = ProjFolder;
+            this.ProjFolder = SynthsAreSubbies;
 
-            Directory.CreateDirectory($"{ProjFolder}");
-            Directory.CreateDirectory($"{ProjFolder}/cat");
-            Directory.CreateDirectory($"{ProjFolder}/common");
-            Directory.CreateDirectory($"{ProjFolder}/sounds/");
+            Directory.CreateDirectory($"{SynthsAreSubbies}");
+            Directory.CreateDirectory($"{SynthsAreSubbies}/cat");
+            Directory.CreateDirectory($"{SynthsAreSubbies}/common");
+            Directory.CreateDirectory($"{SynthsAreSubbies}/sounds/");
 
             D_DisassembleCategories();
             D_DisassembleCommon();
@@ -159,9 +158,11 @@ namespace bmparse
 
             reader.GoPosition("ROOT_OPEN");
 
-            resetLocalScope();
-            resetOutput();
-            wOut(getBanner("ROOT\n#SEBS By Xayrga!"));
+            L_resetLocalScope();
+            D_resetOutput();
+
+            D_Out(getBanner("ROOT\n#SEBS By Xayrga!"));
+
             DisassembleRoutine(new AddressReferenceInfo() {
                 Address = 0,
                 Depth = 0,
@@ -179,11 +180,9 @@ namespace bmparse
                 SourceStack = 0 });
 
             Project.InitSection = "init.txt";
-            flushOutput($"{ProjFolder}/init.txt");
+            flushOutput($"{SynthsAreSubbies}/init.txt");
 
-            File.WriteAllText($"{ProjFolder}/project.json", JsonConvert.SerializeObject(Project, Formatting.Indented));
-
-
+            File.WriteAllText($"{SynthsAreSubbies}/project.json", JsonConvert.SerializeObject(Project, Formatting.Indented));
         }
 
 
@@ -211,8 +210,8 @@ namespace bmparse
                         continue;
                     }
 
-                    resetLocalScope();
-                    resetOutput();
+                    L_resetLocalScope();
+                    D_resetOutput();
                     reader.BaseStream.Position = ls[x];
                     var ld = LinkData[reader.BaseStream.Position];
              
@@ -240,9 +239,9 @@ namespace bmparse
                 xayrga.cmdl.consoleHelpers.consoleProgress("Decompiling categories...", catNum + 1, Project.SoundLists.Length,true);
                
                 Project.SoundLists[catNum] = new SEBMSProjectCategory();
-                resetOutput();
+                D_resetOutput();
                 var AddrInfo = categoryAddresses.Dequeue();
-                resetLocalScope();
+                L_resetLocalScope();
                 switch (AddrInfo.Type)
                 {
                     default:
@@ -304,13 +303,13 @@ namespace bmparse
             while (commonAddresses.Count > 0)
             {
 
-                resetOutput();
+                D_resetOutput();
                 var AddrInfo = commonAddresses.Dequeue();
-                resetLocalScope();
+                L_resetLocalScope();
                 switch (AddrInfo.Type)
                 {
                     case ReferenceType.ENVELOPE:
-                        wOut(getBanner(AddrInfo.Name));
+                        D_Out(getBanner(AddrInfo.Name));
                         reader.BaseStream.Position = AddrInfo.Address;
                         DisassembleEnvelope();
                         flushOutput($"{ProjFolder}/common/{AddrInfo.Name}.txt");
@@ -335,17 +334,17 @@ namespace bmparse
             {
                 var ld = LinkData[reader.BaseStream.Position];
                 bool nBool = false;
-                wOut(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
+                D_Out(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
             }
 
             var env = JInstrumentEnvelopev1.CreateFromStream(reader);
             for (int i = 0; i < env.points.Length; i++)
             {
                 var point = env.points[i];
-                wOut($"ENVPOINT {point.Mode} {point.Delay} {point.Value}");
+                D_Out($"ENVPOINT {point.Mode} {point.Delay} {point.Value}");
             }
 
-            wOut("STOP #Envelope Termination");
+            D_Out("STOP #Envelope Termination");
         }
 
         private string getLabelGeneric(string type, long address, out bool newCreated, string prm = null)
@@ -382,13 +381,13 @@ namespace bmparse
                         if (ld.SourceAddress != RefInfo.SourceAddress)
                         {
                             //Console.WriteLine($"{ld.SourceAddress:X} {RefInfo.SourceAddress}");
-                            wOut(":@" + getGlobalLabel("LEADIN", reader.BaseStream.Position, "INLINE")); // I think sunshine did this...
+                            D_Out(":@" + getGlobalLabel("LEADIN", reader.BaseStream.Position, "INLINE")); // I think sunshine did this...
                            // Console.WriteLine(":@" + getGlobalLabel("LEADIN", reader.BaseStream.Position, "INLINE"));
                         }
                         else
                         {
                             bool nBool = false;
-                            wOut(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
+                            D_Out(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
                         }
                     }
                     skpFst = false;
@@ -478,7 +477,7 @@ namespace bmparse
                         line = command.getAssemblyString();
                         break;
                 }
-                wOut(line);
+                D_Out(line);
                 if (STOP)
                     break;
             }
