@@ -203,7 +203,7 @@ namespace bmparse
                 for (int x=0; x < ls.Length; x++)
                 {
 
-                    xayrga.cmdl.consoleHelpers.consoleProgress($"Category {i} Extracting sounds", x + 1, ls.Length, true);
+                    xayrga.cmdl.consoleHelpers.consoleProgress($"Category {i} disassembling sounds", x + 1, ls.Length, true);
                     if (filesAtAddress.ContainsKey(ls[x]))
                     {
                         projCat.Sounds[x] = filesAtAddress[ls[x]];
@@ -302,7 +302,6 @@ namespace bmparse
             var comNum = 0;
             while (commonAddresses.Count > 0)
             {
-
                 D_resetOutput();
                 var AddrInfo = commonAddresses.Dequeue();
                 L_resetLocalScope();
@@ -313,13 +312,13 @@ namespace bmparse
                         reader.BaseStream.Position = AddrInfo.Address;
                         DisassembleEnvelope();
                         flushOutput($"{ProjFolder}/common/{AddrInfo.Name}.txt");
-                        Project.CommonLib[comNum] = $"cat/{AddrInfo.Name}.txt";
+                        Project.CommonLib[comNum] = $"common/{AddrInfo.Name}.txt";
                         break;
                     default:
                         reader.BaseStream.Position = AddrInfo.Address;
                         DisassembleRoutine(AddrInfo);
                         flushOutput($"{ProjFolder}/common/{AddrInfo.Name}.txt");
-                        Project.CommonLib[comNum] = $"cat/{AddrInfo.Name}.txt";
+                        Project.CommonLib[comNum] = $"common/{AddrInfo.Name}.txt";
                         break;
                 }
 
@@ -451,7 +450,13 @@ namespace bmparse
                         }
                         break;
                     case BMSCommandType.SIMPLEENV:
-             
+                        {
+                            var env = (SimpleEnvelope)command;
+                            bool newCreated = false;
+                            line = env.getAssemblyString(new string[] { getLabelGeneric("ENVELOPE", env.Address, out newCreated) });
+                            if (newCreated)
+                                LocalReference.Enqueue(LinkData[env.Address]);
+                        }
                         break;
                     case BMSCommandType.SETINTERRUPT:
                         {
@@ -484,18 +489,29 @@ namespace bmparse
             while (LocalReference.Count > 0)
             {
                 var rf = LocalReference.Dequeue();
-                if (rf.Type != ReferenceType.CALLTABLE)
+                switch (rf.Type)
                 {
-                    reader.BaseStream.Position = rf.Address;
-                    if (!traveled.ContainsKey(rf.Address))
-                    {
-                        var vrf = DisassembleRoutine(rf, isCategory);
-                        if (vrf != null)
-                            ret = vrf;
-                    }  
-                } else
-                {
-                    throw new Exception("Nested calltable not supported.");
+                    case ReferenceType.CALLTABLE:
+                        throw new Exception("Nested calltable not supported.");
+                        break;
+                    case ReferenceType.ENVELOPE:
+                        D_Out(getBanner("ENVELOPE",true));
+                        reader.BaseStream.Position = rf.Address;
+                        DisassembleEnvelope();
+                        break;
+
+                    default:
+                        D_Out("");
+                        D_Out("");
+                        reader.BaseStream.Position = rf.Address;
+                        if (!traveled.ContainsKey(rf.Address))
+                        {
+                            var vrf = DisassembleRoutine(rf, isCategory);
+                            if (vrf != null)
+                                ret = vrf;
+                        }
+                        break;
+
                 }
             }
   

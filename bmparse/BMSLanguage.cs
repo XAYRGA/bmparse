@@ -144,9 +144,9 @@ namespace bmparse.bms
 
         internal string getByteString(byte[] hx)
         {
-            string x = "HEX(";
-            for (int i = 0; i < hx.Length; i++)
-                x += $"{hx[i]:X},";
+            string x = $"HEX({(hx.Length > 0 ? $"{hx[0]:X}" : "X")}";
+            for (int i = 1; i < hx.Length; i++)
+                x += $",{hx[i]:X}";
             x += ")";
             return x;
         }
@@ -355,7 +355,7 @@ namespace bmparse.bms
 
         public override void read(bgReader read)
         {
-            Delay = read.ReadUInt16();
+            Delay = read.ReadUInt16BE();
         }
 
         public override void write(bgWriter write)
@@ -389,7 +389,7 @@ namespace bmparse.bms
         public override void read(bgReader read)
         {
             TargetParameter = read.ReadByte();
-            Value = read.ReadInt16();
+            Value = read.ReadInt16BE();
         }
 
         public override void write(bgWriter write)
@@ -412,13 +412,13 @@ namespace bmparse.bms
 
         public override string getAssemblyString(string[] data = null)
         {
-            return ($"ADD16 {TargetParameter:X}h {Value:X}");
+            return ($"ADD16 {TargetParameter:X}h {Value}");
         }
 
         public override void read(bgReader read)
         {
             TargetParameter = read.ReadByte();
-            Value = read.ReadInt16();
+            Value = read.ReadInt16BE();
         }
 
         public override void write(bgWriter write)
@@ -1091,11 +1091,11 @@ namespace bmparse.bms
 
         public override void read(bgReader read)
         {
-            Attack = read.ReadInt16();
-            Decay = read.ReadInt16();
-            Sustain = read.ReadInt16();
-            Release = read.ReadInt16();
-            Unknown = read.ReadInt16();
+            Attack = read.ReadInt16BE();
+            Decay = read.ReadInt16BE();
+            Sustain = read.ReadInt16BE();
+            Release = read.ReadInt16BE();
+            Unknown = read.ReadInt16BE();
         }
 
         public override void write(bgWriter write)
@@ -1288,7 +1288,7 @@ namespace bmparse.bms
         {
             Parameter = read.ReadByte();
             Value = read.ReadSByte();
-            Duration = read.ReadUInt16();
+            Duration = read.ReadUInt16BE();
         }
 
         public override void write(bgWriter write)
@@ -1319,7 +1319,7 @@ namespace bmparse.bms
         public override void read(bgReader read)
         {
             Parameter = read.ReadByte();
-            Value = read.ReadInt16(); 
+            Value = read.ReadInt16BE(); 
         }
 
         public override void write(bgWriter write)
@@ -1380,7 +1380,7 @@ namespace bmparse.bms
         public override void read(bgReader read)
         {
             Parameter = read.ReadByte();
-            Value = read.ReadInt16();
+            Value = read.ReadInt16BE();
             Unknown = read.ReadByte();
         }
 
@@ -1412,7 +1412,7 @@ namespace bmparse.bms
         public override void read(bgReader read)
         {
             Parameter = read.ReadByte();
-            Value = read.ReadInt16();
+            Value = read.ReadInt16BE();
             Duration = read.ReadByte();
         }
 
@@ -1800,7 +1800,7 @@ namespace bmparse.bms
         public override void read(bgReader read)
         {
             Source = read.ReadByte();
-            Value = read.ReadInt16();
+            Value = read.ReadInt16BE();
         }
 
         public override void write(bgWriter write)
@@ -1975,7 +1975,6 @@ namespace bmparse.bms
         }
     }
 
-
     public class LoopEnd : bmscommand
     {
         public LoopEnd()
@@ -2016,7 +2015,7 @@ namespace bmparse.bms
 
         public override void read(bgReader read)
         {
-            Value = read.ReadUInt16();
+            Value = read.ReadUInt16BE();
         }
 
         public override void write(bgWriter write)
@@ -2042,7 +2041,7 @@ namespace bmparse.bms
 
         public override void read(bgReader read)
         {
-            BeatsPerMinute = read.ReadUInt16();
+            BeatsPerMinute = read.ReadUInt16BE();
         }
 
         public override void write(bgWriter write)
@@ -2068,7 +2067,7 @@ namespace bmparse.bms
 
         public override void read(bgReader read)
         {
-            PulsesPerQuarterNote = read.ReadUInt16();
+            PulsesPerQuarterNote = read.ReadUInt16BE();
         }
 
         public override void write(bgWriter write)

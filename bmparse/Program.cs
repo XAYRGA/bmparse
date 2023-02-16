@@ -9,11 +9,19 @@ namespace bmparse {
     {
         static void Main()
         {
+
+            var outFile = File.OpenWrite("out.bms");
+            var writer = new bgWriter(outFile);
+
+            var WX = new SEBMSAssembler();
+            WX.LoadData("lm2/init.txt");
+            WX.SetOutput(writer);
+            WX.ProcBuffer();
+
+            /*
             var fileStream = File.OpenRead("luigise.bms");
             var binaryReader = new bgReader(fileStream);
 
-            Queue<int[]> ohno = new Queue<int[]>();
-  
             binaryReader.SavePosition("ROOT_OPEN");
             var WLF = new bmparse.BMSLinkageAnalyzer(binaryReader);
             WLF.Analyze(0, 0, ReferenceType.ROOT);
@@ -24,6 +32,7 @@ namespace bmparse {
             var WL2 = new bmparse.SEBMSDisassembler(binaryReader,LinkageInfo);
             WL2.CodePageMapping = WLF.CodePageMapping;
             WL2.Disassemble("lm2");
+           // */
 
             /*
             foreach (KeyValuePair<long,AddressReferenceInfo> iter in LinkageInfo)
@@ -54,7 +63,7 @@ namespace bmparse {
                 }
             }
             */
-            
+
 
 
         }
