@@ -20,13 +20,13 @@ namespace bmparse
         JUMPTABLE = 8,
         CALLTABLE = 9,
         CALLFROMTABLE = 10,
+        CATEGORYOPEN = 11,
     }
 
     public class AddressReferenceInfo
     {
         public long Address;
         public long SourceStack = 0;
-        public long SourceAddress = 0;
         public int RefCount = 0;
         public ReferenceType Type;
 

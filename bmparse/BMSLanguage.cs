@@ -679,8 +679,9 @@ namespace bmparse.bms
             write.WriteBE((byte)BMSCommandType.OPOVERRIDE_4);
             write.WriteBE(Instruction);
             write.WriteBE(ArgumentMask);
-            write.Write(Stupid);
             write.Write(ArgumentMaskLookup);
+            write.Write(Stupid);
+    
         }
     }
 
@@ -745,11 +746,12 @@ namespace bmparse.bms
 
         public override void write(bgWriter write)
         {
-            write.WriteBE((byte)BMSCommandType.OPOVERRIDE_4);
+            write.WriteBE((byte)BMSCommandType.OPOVERRIDE_1);
             write.WriteBE(Instruction);
             write.WriteBE(ArgumentMask);
-            write.Write(Stupid);
             write.Write(ArgumentMaskLookup);
+            write.Write(Stupid);
+
         }
     }
 

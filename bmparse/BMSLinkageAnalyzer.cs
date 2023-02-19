@@ -24,15 +24,13 @@ namespace bmparse
        
         public int[] StopHints = new int[0];
 
-
-  
         public BMSLinkageAnalyzer(bgReader reader)
         {
             this.reader = reader;  
         }
 
 
-        private AddressReferenceInfo referenceAddress(long addr, ReferenceType type, long src = 0, int depth = 0)
+        private AddressReferenceInfo referenceAddress(long addr, ReferenceType type, long src = 0, int depth = 0, bool overrideType = false)
         {
             AddressReferenceInfo inc = null;
             AddressReferenceAccumulator.TryGetValue(addr, out inc);
@@ -40,13 +38,16 @@ namespace bmparse
                 inc = new AddressReferenceInfo()
                 {
                     Type = type,
-                    SourceAddress = src
+                    SourceStack = src
                 };
             inc.Depth = depth;
             inc.Address = addr;
             inc.RefCount++;
-            
+            if (overrideType)
+                inc.Type = type;
+
             inc.ReferenceStackSources.Add(src);
+                
             AddressReferenceAccumulator[addr] = inc;
             return inc;
         }
@@ -67,7 +68,6 @@ namespace bmparse
 
         private bool checkStopHint(long pos)
         {
-
             foreach (int p in StopHints)
                 if (p != 0 && p == pos)
                     return true;
@@ -109,23 +109,16 @@ namespace bmparse
             AddressReferenceInfo bb = null;
             if (AddressReferenceAccumulator.ContainsKey(src))
                 bb = AddressReferenceAccumulator[src];
-            
-            //Console.WriteLine($"{new string('-',depth)} {src:X} ({(bb==null ? "UNREF" : bb.Type)}) ");
+
+            var originalPosition = Position;
 
             bool STOP = false; 
             while (true)
             {
-        
-                // Console.Write($"{Position:X}");
-                if (travelHistory.ContainsKey(Position))     
-                    break;
 
-                // Store history position.
                 travelHistory[Position] = 1;
                 CodePageMapping[Position] = src;
                 var command = commandFactory.readNextCommand(reader);
-
-               // Console.WriteLine($"{new string('-', depth)} {command.CommandType} ");
 
                 AddressReferenceInfo AddressRefInfo;
                 switch (command.CommandType)
@@ -149,6 +142,7 @@ namespace bmparse
                         break;
                     case BMSCommandType.JMP:
                         var jmp = (Jump)command ;
+
                         if (travelHistory.ContainsKey(jmp.Address))
                             AddressRefInfo = referenceAddress(jmp.Address, ReferenceType.LEADIN, src, depth);
                         else
@@ -159,8 +153,10 @@ namespace bmparse
                             STOP = true;
                         break;                   
                     case BMSCommandType.OPENTRACK:
-                        var opentrack = (OpenTrack)command ;             
+                        var opentrack = (OpenTrack)command ;
+                        
                         AddressRefInfo = referenceAddress(opentrack.Address, ReferenceType.TRACK, src, depth);
+         
                         toAnalyze.Push(AddressRefInfo);
                         break;
                     case BMSCommandType.SIMPLEENV:
@@ -169,7 +165,8 @@ namespace bmparse
                         break;
                     case BMSCommandType.SETINTERRUPT:
                         var sint = (SetInterrupt)command;
-                        AddressRefInfo = referenceAddress(sint.Address, ReferenceType.INTERRUPT, src, depth);
+                        AddressRefInfo = referenceAddress(sint.Address, ReferenceType.INTERRUPT, originalPosition, depth);
+                     
                         toAnalyze.Push(AddressRefInfo);
          
                         break;
@@ -197,6 +194,9 @@ namespace bmparse
                 reader.PushAnchor();
                 var addrInfo = toAnalyze.Pop();
 
+                if (addrInfo.Address == 0x0308B)
+                    Console.WriteLine(addrInfo.Type);
+
                 switch (addrInfo.Type)
                 {
                     case ReferenceType.JUMPTABLE:
@@ -207,9 +207,9 @@ namespace bmparse
                         //Console.WriteLine($"{new string('-', depth)} CALLTABLE");
                         for (int i=0; i < entries.Length; i++)
                         {
-                            var AddressRefInfo = referenceAddress(entries[i], addrInfo.Type==ReferenceType.CALLTABLE ? ReferenceType.CALLFROMTABLE : ReferenceType.JUMP, src, depth + 1);
+                            var AddressRefInfo = referenceAddress(entries[i], addrInfo.Type==ReferenceType.CALLTABLE ? ReferenceType.CALLFROMTABLE : ReferenceType.JUMP, entries[i], depth + 1,true );
                             if (!travelHistory.ContainsKey(addrInfo.Address))
-                                toAnalyze.Push(AddressRefInfo);     
+                                toAnalyze.Push(AddressRefInfo);
                         }
                         break;
                     case ReferenceType.TRACK:
@@ -219,12 +219,14 @@ namespace bmparse
                                 Analyze(src, addrInfo.Depth + 1, addrInfo.Type);
                             else
                                 Analyze(src, addrInfo.Depth + 1, addrInfo.Type);
+                            
+                       
                         break;
                     case ReferenceType.CALLFROMTABLE:
                         Position = addrInfo.Address;
-                        if (!travelHistory.ContainsKey(Position))
                             Analyze(Position, addrInfo.Depth + 1, addrInfo.Type);
                         break;
+
                     default:
                         Position = addrInfo.Address;
 
