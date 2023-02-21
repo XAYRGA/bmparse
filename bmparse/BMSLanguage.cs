@@ -186,6 +186,7 @@ namespace bmparse.bms
         public byte Voice = 0;
         public byte Velocity = 0;
         public byte Type = 0;
+        public byte Behavior = 0;
 
         // Datatypes are actually bytes! 
         // Need this so we can signal if it's set or not without adding bools to class ;)
@@ -202,11 +203,22 @@ namespace bmparse.bms
         {
 
             var flags = read.ReadByte();
+
+            if (flags > 0xC0)
+                Console.WriteLine($"{read.BaseStream.Position - 2:X}");
+
+            Type = (byte)(flags >> 3);
+            Behavior = (byte)(Type >> 2);
+
+            //if (Type > 0)
+            //    Console.WriteLine($"{read.BaseStream.Position - 2:X} {Type:X} {flags:X}");
+
+      
+
             Voice = (byte)(flags & 0x7);
             Velocity = read.ReadByte();
      
-            Type = (byte)(flags >> 3);
-            //Console.WriteLine(Type);
+         
 
             if ((Type & 1) > 0)
             {
@@ -226,10 +238,12 @@ namespace bmparse.bms
         public override void write(bgWriter write)
         {
             write.WriteBE(Note);
-            byte voiceFlags = (byte)(Voice | (Type << 3));
+            var beh = (Behavior << 2) | Type;
+     
+            byte voiceFlags = (byte)(Voice | (beh << 3));
+
 
             write.WriteBE(voiceFlags);
-
             write.WriteBE(Velocity);
 
             if ((Type & 1) > 0)
@@ -249,11 +263,11 @@ namespace bmparse.bms
         public override string getAssemblyString(string[] data = null)
         {
             if ((Type & 1) > 0)
-                return ($"NOTEONRD {Note:X}h {Voice:X}h {Velocity:X}h {Release:X}h {Delay:X}h");
+                return ($"NOTEONRD {Note:X}h {Behavior:X}h {Voice:X}h {Velocity:X}h {Release:X}h {Delay:X}h");
             else if ((Type & 2) > 0)
-                return ($"NOTEONRDL {Note:X}h {Voice:X}h {Velocity:X}h {Release:X}h {Delay:X}h {Length:X}h");
+                return ($"NOTEONRDL {Note:X}h {Behavior:X}h {Voice:X}h {Velocity:X}h {Release:X}h {Delay:X}h {Length:X}h");
             else
-                return ($"NOTEON {Note:X}h {Voice:X}h {Velocity:X}h");
+                return ($"NOTEON {Note:X}h {Behavior:X}h {Voice:X}h {Velocity:X}h");
         }
     }
 
@@ -1193,7 +1207,7 @@ namespace bmparse.bms
 
         public override string getAssemblyString(string[] data = null)
         {
-            return ($"READPORT {Source}h {Destination:x}h");
+            return ($"READPORT {Source:X}h {Destination:X}h");
         }
 
         public override void read(bgReader read)
@@ -1315,7 +1329,7 @@ namespace bmparse.bms
 
         public override string getAssemblyString(string[] data = null)
         {
-            return ($"TPRMU8 {Parameter:X}h {Value}");
+            return ($"TPRMS16 {Parameter:X}h {Value}");
         }
 
         public override void read(bgReader read)
@@ -1614,6 +1628,7 @@ namespace bmparse.bms
         public byte Source;
         public byte Value;
 
+
         public ParameterAdd8()
         {
             CommandType = BMSCommandType.PARAM_ADD_8;
@@ -1635,6 +1650,7 @@ namespace bmparse.bms
             write.WriteBE((byte)CommandType);
             write.WriteBE(Source);
             write.WriteBE(Value);
+           // write.WriteBE(Destionation);
         }
     }
 
@@ -1884,7 +1900,7 @@ namespace bmparse.bms
     public class LoopStart : bmscommand
     {
         public byte Count;
-
+        public byte Unknown;
 
         public LoopStart()
         {
@@ -1893,18 +1909,20 @@ namespace bmparse.bms
 
         public override string getAssemblyString(string[] data = null)
         {
-            return ($"LOOPSTART {Count:X}h");
+            return ($"LOOPSTART {Count:X}h {Unknown:X}h");
         }
 
         public override void read(bgReader read)
         {
             Count = read.ReadByte();
+            Unknown = read.ReadByte();
         }
 
         public override void write(bgWriter write)
         {
             write.WriteBE((byte)CommandType);
             write.WriteBE(Count);
+            write.WriteBE(Unknown);
         }
     }
 
@@ -1926,11 +1944,11 @@ namespace bmparse.bms
         public override string getAssemblyString(string[] data = null)
         {
             if ((Flags & 0xF) == 0xC)
-                return ($"BITWZC {A:X}h {B:X}h {C:X}h");
+                return ($"BITWZC {Flags:X}h {A:X}h {B:X}h {C:X}h");
             else if ((Flags & 0xF) == 0x8)
-                return ($"BITWZ8 {A:X}h ");
+                return ($"BITWZ8 {Flags:X}h {A:X}h");
             else
-                return ($"BITWZ {A:X}h {B:X}h");
+                return ($"BITWZ {Flags:X}h {A:X}h {B:X}h");
         }
 
         public override void read(bgReader read)

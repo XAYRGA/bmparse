@@ -36,6 +36,8 @@ namespace bmparse
         List<BMSLabelReference> LocalLabelReferences = new List<BMSLabelReference>();
         List<BMSLabelReference> GlobalLabelReferences = new List<BMSLabelReference>();
 
+        Stack<long> categoryCallAddresses = new Stack<long>();
+
         string[] currentData;
 
         bgWriter writer;
@@ -247,8 +249,11 @@ namespace bmparse
                     writer.WriteBE((uint)sndAddresses[b],true);
 
                 writer.PushAnchor();
-                writer.BaseStream.Position = lastCategoryCallOpcodeOffset;
-                writer.WriteBE((uint)JumptableOffset, true);
+                while (categoryCallAddresses.Count > 0)
+                {
+                    writer.BaseStream.Position = categoryCallAddresses.Pop();
+                    writer.WriteBE((uint)JumptableOffset, true);
+                }
                 writer.PopAnchor();
                 writer.Pad(32);
                 writer.Flush();
@@ -292,7 +297,8 @@ namespace bmparse
                     writer.WriteBE((byte)0xC4);
                     writer.WriteBE((byte)0xC0);
                     writer.WriteBE((byte)0x04);
-                    lastCategoryCallOpcodeOffset = writer.BaseStream.Position;
+                    categoryCallAddresses.Push(writer.BaseStream.Position);
+                    //lastCategoryCallOpcodeOffset = writer.BaseStream.Position;
                     writer.WriteBE(0x000000,true);
                     break;
                 case "ALIGN4":
@@ -379,6 +385,18 @@ namespace bmparse
                         inst.Value = (short)parseNumber(a2);
                         inst.Unknown = (byte)parseNumber(a3);
 
+                        inst.write(writer);
+                        break;
+                    }
+                case "TPRMS16":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+
+
+                        var inst = new PERFS16();
+                        inst.Parameter = (byte)parseNumber(a1);
+                        inst.Value = (short)parseNumber(a2);
                         inst.write(writer);
                         break;
                     }
@@ -516,8 +534,10 @@ namespace bmparse
                 case "LOOPSTART":
                     {
                         var trk = checkArgument(ASMLine, 0);
+                        var trk2 = checkArgument(ASMLine, 1);
                         var inst = new LoopStart();
                         inst.Count = (byte)parseNumber(trk);
+                        inst.Unknown = (byte)parseNumber(trk2);
                         inst.write(writer);
                         break;
                     }
@@ -741,10 +761,11 @@ namespace bmparse
                     }
                 case "BITWZ":
                     {
-                        var a1 = checkArgument(ASMLine, 0);
-                        var a2 = checkArgument(ASMLine, 1);
+                        var flg = checkArgument(ASMLine, 0);
+                        var a1 = checkArgument(ASMLine, 1);                  
+                        var a2 = checkArgument(ASMLine, 2);
                         var inst = new ParamBitwise();
-                        inst.Flags = 0;
+                        inst.Flags = (byte)parseNumber(flg);
                         inst.A = (byte)parseNumber(a1);
                         inst.B = (byte)parseNumber(a2);                        
                         inst.write(writer);
@@ -752,22 +773,24 @@ namespace bmparse
                     }
                 case "BITWZ8":
                     {
-                        var a1 = checkArgument(ASMLine, 0);
+                        var flg = checkArgument(ASMLine, 0);
+                        var a1 = checkArgument(ASMLine, 1);
 
                         var inst = new ParamBitwise();
-                        inst.Flags = 0x08;
+                        inst.Flags = (byte)parseNumber(flg);
                         inst.A = (byte)parseNumber(a1);
                         inst.write(writer);
                         break;
                     }
                 case "BITWZC":
                     {
-                        var a1 = checkArgument(ASMLine, 0);
-                        var a2 = checkArgument(ASMLine, 1);
-                        var a3 = checkArgument(ASMLine, 2);
+                        var flg = checkArgument(ASMLine, 0);
+                        var a1 = checkArgument(ASMLine, 1);
+                        var a2 = checkArgument(ASMLine, 2);
+                        var a3 = checkArgument(ASMLine, 3);
 
                         var inst = new ParamBitwise();
-                        inst.Flags = 0x0C;
+                        inst.Flags = (byte)parseNumber(flg);
                         inst.A = (byte)parseNumber(a1);
                         inst.B = (byte)parseNumber(a2);
                         inst.C = (byte)parseNumber(a3);
@@ -806,10 +829,13 @@ namespace bmparse
                 case "NOTEONRD":
                     {
                         var a1 = checkArgument(ASMLine, 0);
-                        var a2 = checkArgument(ASMLine, 1);
-                        var a3 = checkArgument(ASMLine, 2);
-                        var a4 = checkArgument(ASMLine, 3);
-                        var a5 = checkArgument(ASMLine, 4);
+
+                        var aBeh = checkArgument(ASMLine, 1);
+                        var a2 = checkArgument(ASMLine, 2);
+   
+                        var a3 = checkArgument(ASMLine, 3);
+                        var a4 = checkArgument(ASMLine, 4);
+                        var a5 = checkArgument(ASMLine, 5);
                         var inst = new NoteOnCommand();
 
                         inst.Type = 1;
@@ -818,6 +844,8 @@ namespace bmparse
                         inst.Velocity = (byte)parseNumber(a3);
                         inst.Release = (byte)parseNumber(a4);
                         inst.Delay = (byte)parseNumber(a5);
+                        //Console.WriteLine(aBeh);
+                        inst.Behavior = (byte)parseNumber(aBeh);
                         inst.write(writer);
                         break;
                     }
@@ -825,11 +853,12 @@ namespace bmparse
                     {
                     
                         var a1 = checkArgument(ASMLine, 0);
-                        var a2 = checkArgument(ASMLine, 1);
-                        var a3 = checkArgument(ASMLine, 2);
-                        var a4 = checkArgument(ASMLine, 3);
-                        var a5 = checkArgument(ASMLine, 4);
-                        var a6 = checkArgument(ASMLine, 5);
+                        var aBeh = checkArgument(ASMLine, 1);
+                        var a2 = checkArgument(ASMLine, 2);
+                        var a3 = checkArgument(ASMLine, 3);
+                        var a4 = checkArgument(ASMLine, 4);
+                        var a5 = checkArgument(ASMLine, 5);
+                        var a6 = checkArgument(ASMLine, 6);
                         var inst = new NoteOnCommand();
 
                         inst.Type = 2;
@@ -839,14 +868,16 @@ namespace bmparse
                         inst.Release = (byte)parseNumber(a4);
                         inst.Delay = (byte)parseNumber(a5);
                         inst.Length = (byte)parseNumber(a6);
+                        inst.Behavior = (byte)parseNumber(aBeh);
                         inst.write(writer);
                         break;
                     }
                 case "NOTEON":
                     {
                         var a1 = checkArgument(ASMLine, 0);
-                        var a2 = checkArgument(ASMLine, 1);
-                        var a3 = checkArgument(ASMLine, 2);
+                        var aBeh = checkArgument(ASMLine, 1);
+                        var a2 = checkArgument(ASMLine, 2);
+                        var a3 = checkArgument(ASMLine, 3);
 
                         var inst = new NoteOnCommand();
                         inst.Type = 0;
@@ -854,6 +885,7 @@ namespace bmparse
                         inst.Note = (byte)parseNumber(a1);
                         inst.Voice = (byte)parseNumber(a2);
                         inst.Velocity = (byte)parseNumber(a3);
+                        inst.Behavior = (byte)parseNumber(aBeh);
                         inst.write(writer);
 
                         break;

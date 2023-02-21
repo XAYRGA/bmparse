@@ -412,7 +412,9 @@ namespace bmparse
 
                 traveled[reader.BaseStream.Position] = 1;
                 var command = commandFactory.readNextCommand(reader);
-
+                //Console.WriteLine($"{reader.BaseStream.Position:X}  {command}");
+                //if (reader.BaseStream.Position == 0x291F)
+                    //Console.Write("Break");
                 AddressReferenceInfo AddressRefInfo;
                 switch (command.CommandType)
                 {

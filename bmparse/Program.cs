@@ -11,12 +11,12 @@ namespace bmparse {
         static void Main()
         {
 
-
-            var www = File.ReadAllText("lm2/project.json");
+            //*
+            var www = File.ReadAllText("lm_us/project.json");
             SEBMSProject PROJ = JsonConvert.DeserializeObject<SEBMSProject>(www);
             var WX = new SEBMSAssembler();
-            WX.BuildProject(PROJ, "lm2", "out2.bms");
-
+            WX.BuildProject(PROJ, "lm_us", @"E:\DOLPHIN\root\mansion_us_fresh\files\AudioRes\Audio_Modding\Sequences\LuigiSe.bms.bms");
+            //*/
 
             /*
     
@@ -32,7 +32,7 @@ namespace bmparse {
             ///*
             ///
             /*
-            var fileStream = File.OpenRead("luigise.bms");
+            var fileStream = File.OpenRead("luigius.bms");
             var binaryReader = new bgReader(fileStream);
 
             binaryReader.SavePosition("ROOT_OPEN");
@@ -101,7 +101,7 @@ namespace bmparse {
 
 
 
-            WL2.Disassemble("lm2");
+            WL2.Disassemble("lm_us");
 
 
             //*/
@@ -114,7 +114,7 @@ namespace bmparse {
 
 
 
-           // */
+            // */
 
             /*
             foreach (KeyValuePair<long,AddressReferenceInfo> iter in LinkageInfo)

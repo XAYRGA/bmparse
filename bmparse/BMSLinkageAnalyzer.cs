@@ -118,8 +118,9 @@ namespace bmparse
 
                 travelHistory[Position] = 1;
                 CodePageMapping[Position] = src;
+               
                 var command = commandFactory.readNextCommand(reader);
-
+        
                 AddressReferenceInfo AddressRefInfo;
                 switch (command.CommandType)
                 {
