@@ -116,10 +116,12 @@ namespace bmparse
 
         public void defineLabel(long address, string name)
         {
+
             if (name[0] == '@')
                 GlobalLabels[name] = address;
-            else 
+            else
                 LocalLabels[name] = address;
+
         }
 
         private string checkArgument(string[] instr,int argn )
@@ -131,19 +133,18 @@ namespace bmparse
         }
 
         public BMSLabelReference linkLabelScope(List<BMSLabelReference> scope)
-        {
-            
+        { 
             foreach (BMSLabelReference Ref in scope)
             {
                 long labDestinationAddress = -1;
                 LocalLabels.TryGetValue(Ref.Label, out labDestinationAddress);
-
+                //Console.WriteLine($"{Ref.Label} {labDestinationAddress}");
                 if (labDestinationAddress<=0)
                     GlobalLabels.TryGetValue(Ref.Label, out labDestinationAddress);
-     
+    
                 if (labDestinationAddress <= 0)
                     return Ref; // Can't link labels any more, found an undefined.
-
+                //Console.WriteLine($"{Ref.Label} {labDestinationAddress}");
                 writer.PushAnchor();
                 writer.BaseStream.Position = Ref.Address + Ref.InstructionDepth;
                 switch (Ref.Size)
@@ -195,6 +196,9 @@ namespace bmparse
 
             for (int i = 0; i < Project.CategoryLogics.Length; i++)
             {
+
+
+                Console.WriteLine($"OpenADDR {writer.BaseStream.Position:X:X5}");
                 var comCurrent = Project.CategoryLogics[i];
                 Console.WriteLine($"Assembling categorylogic... {comCurrent}");
                 LoadData($"{projectBase}/{comCurrent}");
@@ -202,32 +206,64 @@ namespace bmparse
                     return;
                 if (!LinkLocals())
                     return;
+
+                
                 if (lastCategoryCallOpcodeOffset > 0)
                     Console.WriteLine($"Push opcode address {lastCategoryCallOpcodeOffset:X5}");
                 writer.Pad(32);
                 var sndList = Project.SoundLists[i];
                 var sndAddresses = new long[sndList.Sounds.Length];
-
+                Dictionary<string, long> unDupe = new Dictionary<string, long>();
                 for (int sndNum = 0; sndNum  < sndList.Sounds.Length; sndNum++)
                 {
-               
-                    sndAddresses[sndNum] = writer.BaseStream.Position;
                     var snd = sndList.Sounds[sndNum];
+
+                    if (unDupe.ContainsKey(snd))
+                    {
+                        sndAddresses[sndNum] = unDupe[snd];
+                        continue;
+                    }
+                    sndAddresses[sndNum] = writer.BaseStream.Position;
+                    unDupe[snd] = writer.BaseStream.Position;
+
+
                     Console.WriteLine($"\tAssembling sound... {snd}");
                     LoadData($"{projectBase}/{snd}");
-                    writer.Pad(4);
+         
                     if (!ProcBuffer())
                         return;
+
                     if (!LinkLocals())
                         return;
+
+                    writer.Pad(4);
                 }
+
+                writer.Pad(32);
+                
+                var JumptableOffset = writer.BaseStream.Position;
+                Console.WriteLine($"JTABLE {JumptableOffset:X5}");
+                for (int b=0; b < sndAddresses.Length; b++)
+                    writer.WriteBE((uint)sndAddresses[b],true);
+
+                writer.PushAnchor();
+                writer.BaseStream.Position = lastCategoryCallOpcodeOffset;
+                writer.WriteBE((uint)JumptableOffset, true);
+                writer.PopAnchor();
+                writer.Pad(32);
+                writer.Flush();
+                
 
 
             }
 
-
-  
-
+   
+            LinkGlobals();
+            var fc = Console.ForegroundColor;
+            Console.WriteLine("Testing link structure...");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("SE.BMS Rebuild successful");
+            Console.ForegroundColor = fc;
         }
 
         public string ProcInstruction(string[] ASMLine)
@@ -299,6 +335,17 @@ namespace bmparse
                         inst.InterruptLevel = (byte)parseNumber(interruptLevel);
                         inst.Address = 0; // Will get filled by label ref later.
                         inst.write(writer);
+                        break;
+                    }
+                case "SIMPLENV":
+                    {
+                        var envID = checkArgument(ASMLine, 0);
+                        var lbl = checkArgument(ASMLine, 1);
+                        referenceLabel(writer.BaseStream.Position, 2, lbl, AddressSize.U24);
+                        var inst = new SimpleEnvelope();
+                        inst.Flags = (byte)parseNumber(envID);
+                        inst.Address = 0; // Will get filled by label ref later.
+                        inst.write(writer);
                     }
                     break;
                 case "PARAM8":
@@ -308,6 +355,41 @@ namespace bmparse
                         var inst = new ParameterSet8();
                         inst.TargetParameter = (byte)parseNumber(a1);
                         inst.Value = (byte)parseNumber(a2);
+                        inst.write(writer);
+                        break;
+                    }
+                case "SETPARAM90":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var inst = new ParameterSet8_90();
+                        inst.Source = (byte)parseNumber(a1);
+                        inst.Value = (byte)parseNumber(a2);
+                        inst.write(writer);
+                        break;
+                    }
+                case "TPRMS16_DU8_9E":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+
+                        var inst = new PERFS16U89E();
+                        inst.Parameter= (byte)parseNumber(a1);
+                        inst.Value = (short)parseNumber(a2);
+                        inst.Unknown = (byte)parseNumber(a3);
+
+                        inst.write(writer);
+                        break;
+                    }
+
+                case "SETPARAM92":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var inst = new ParameterSet16_92();
+                        inst.Source = (byte)parseNumber(a1);
+                        inst.Value = (short)parseNumber(a2);
                         inst.write(writer);
                         break;
                     }
@@ -504,7 +586,18 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
-     
+                case "TPRMS8_DU8":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+                        var inst = new PERFS8DURU8();
+                        inst.Parameter = (byte)parseNumber(a1);
+                        inst.Value = (sbyte)parseNumber(a2);
+                        inst.Duration = (byte)parseNumber(a3);
+                        inst.write(writer);
+                        break;
+                    }
                 case "CMP8":
                     {
                         var a1 = checkArgument(ASMLine, 0);
@@ -616,13 +709,33 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
+                case "MUL8":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var inst = new ParameterMultiply8();
+                        inst.Source = (byte)parseNumber(a1);
+                        inst.Value = (byte)parseNumber(a2);
+                        inst.write(writer);
+                        break;
+                    }
+                case "SUB8":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var inst = new ParameterSubtract();
+                        inst.Source = (byte)parseNumber(a1);
+                        inst.Destination = (byte)parseNumber(a2);
+                        inst.write(writer);
+                        break;
+                    }
                 case "ADD16":
                     {
                         var a1 = checkArgument(ASMLine, 0);
                         var a2 = checkArgument(ASMLine, 1);
                         var inst = new ParameterAdd16();
                         inst.TargetParameter = (byte)parseNumber(a1);
-                        inst.Value = (byte)parseNumber(a2);
+                        inst.Value = (short)parseNumber(a2);
                         inst.write(writer);
                         break;
                     }
@@ -631,6 +744,7 @@ namespace bmparse
                         var a1 = checkArgument(ASMLine, 0);
                         var a2 = checkArgument(ASMLine, 1);
                         var inst = new ParamBitwise();
+                        inst.Flags = 0;
                         inst.A = (byte)parseNumber(a1);
                         inst.B = (byte)parseNumber(a2);                        
                         inst.write(writer);
@@ -643,6 +757,39 @@ namespace bmparse
                         var inst = new ParamBitwise();
                         inst.Flags = 0x08;
                         inst.A = (byte)parseNumber(a1);
+                        inst.write(writer);
+                        break;
+                    }
+                case "BITWZC":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+
+                        var inst = new ParamBitwise();
+                        inst.Flags = 0x0C;
+                        inst.A = (byte)parseNumber(a1);
+                        inst.B = (byte)parseNumber(a2);
+                        inst.C = (byte)parseNumber(a3);
+                        inst.write(writer);
+                        break;
+                    }
+
+                case "PANPOWSET":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+                        var a4 = checkArgument(ASMLine, 3);
+                        var a5 = checkArgument(ASMLine, 4);
+                        var inst = new PanPowerSet();
+
+                   
+                        inst.A= (byte)parseNumber(a1);
+                        inst.B = (byte)parseNumber(a2);
+                        inst.C = (byte)parseNumber(a3);
+                        inst.D = (byte)parseNumber(a4);
+                        inst.E = (byte)parseNumber(a5);
                         inst.write(writer);
                         break;
                     }
@@ -670,7 +817,8 @@ namespace bmparse
                         inst.Voice = (byte)parseNumber(a2);
                         inst.Velocity = (byte)parseNumber(a3);
                         inst.Release = (byte)parseNumber(a4);
-                        inst.Delay = (byte)parseNumber(a5); 
+                        inst.Delay = (byte)parseNumber(a5);
+                        inst.write(writer);
                         break;
                     }
                 case "NOTEONRDL":
@@ -797,6 +945,7 @@ namespace bmparse
             currentData = File.ReadAllLines(path);
             currentFile = path;
             LocalLabelReferences.Clear();
+            LocalLabels.Clear();
         }
 
         private bool LinkLocals()
@@ -822,6 +971,7 @@ namespace bmparse
         private bool LinkGlobals()
         {
             var res = linkLabelScope(GlobalLabelReferences);
+  
             if (res != null)
             {
                 var fg = Console.ForegroundColor;
@@ -832,7 +982,7 @@ namespace bmparse
                 Console.WriteLine($"\t{res.Filename} @ Line {res.Line}");
                 Console.Write($"\tAddress: 0x{res.Address:X} Text: ");
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"{currentData[res.Line]}");
+
                 Console.ForegroundColor = fg;
                 return false;
             }

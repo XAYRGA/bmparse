@@ -223,7 +223,10 @@ namespace bmparse
                 var projCat = Project.SoundLists[i];
 
 
+
+
                 var bestCatName = CategoryNames.ContainsKey(i) ? $"{CategoryNames[i]}" : $"{i:X4}";
+                projCat.Name = bestCatName;
 
         
 
@@ -294,7 +297,7 @@ namespace bmparse
                     default:
                         reader.BaseStream.Position = AddrInfo.Address;
                         var name = AddrInfo.Name;
-                        int[] soundS = DisassembleRoutine(AddrInfo,true);
+                        int[] soundS = DisassembleRoutine(AddrInfo,true, false, false);
                         CategoryTableAddrs.Add(soundS);
                         flushOutput($"{ProjFolder}/cat/{name}.txt");
                         Project.CategoryLogics[catNum] = $"cat/{name}.txt";
@@ -461,6 +464,7 @@ namespace bmparse
                             var trkOpen = (OpenTrack)command;
 
                             line = trkOpen.getAssemblyString(new string[] { getLabelGeneric("OPENTRACK", trkOpen.Address, out newCreated) }) ;
+                
                             if (newCreated)
                                 LocalReference.Enqueue(LinkData[trkOpen.Address]);
                         }

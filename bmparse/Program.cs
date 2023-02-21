@@ -11,6 +11,7 @@ namespace bmparse {
         static void Main()
         {
 
+
             var www = File.ReadAllText("lm2/project.json");
             SEBMSProject PROJ = JsonConvert.DeserializeObject<SEBMSProject>(www);
             var WX = new SEBMSAssembler();

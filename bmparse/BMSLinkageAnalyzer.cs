@@ -153,10 +153,10 @@ namespace bmparse
                             STOP = true;
                         break;                   
                     case BMSCommandType.OPENTRACK:
-                        var opentrack = (OpenTrack)command ;
-                        
+                        var opentrack = (OpenTrack)command;
+
                         AddressRefInfo = referenceAddress(opentrack.Address, ReferenceType.TRACK, src, depth);
-         
+                    
                         toAnalyze.Push(AddressRefInfo);
                         break;
                     case BMSCommandType.SIMPLEENV:
@@ -194,9 +194,6 @@ namespace bmparse
                 reader.PushAnchor();
                 var addrInfo = toAnalyze.Pop();
 
-                if (addrInfo.Address == 0x0308B)
-                    Console.WriteLine(addrInfo.Type);
-
                 switch (addrInfo.Type)
                 {
                     case ReferenceType.JUMPTABLE:
@@ -217,6 +214,8 @@ namespace bmparse
                         if (!travelHistory.ContainsKey(Position))
                             if (currentType==ReferenceType.CALLFROMTABLE)
                                 Analyze(src, addrInfo.Depth + 1, addrInfo.Type);
+                            else if (depth < 2)
+                                Analyze(Position, addrInfo.Depth + 1, addrInfo.Type);
                             else
                                 Analyze(src, addrInfo.Depth + 1, addrInfo.Type);
                             

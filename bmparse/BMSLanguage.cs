@@ -305,7 +305,7 @@ namespace bmparse.bms
 
         public override void write(bgWriter write)
         {
-            write.WriteBE((byte)BMSCommandType.CMD_WAIT8);
+            write.WriteBE((byte)BMSCommandType.CMD_WAITR);
             write.WriteBE(Register);
         }
     }
@@ -1223,7 +1223,7 @@ namespace bmparse.bms
 
         public override string getAssemblyString(string[] data = null)
         {
-            return ($"WRITEPORT {Source}h {Destination:x}h");
+            return ($"WRITEPORT {Source:X}h {Destination:X}h");
         }
 
         public override void read(bgReader read)

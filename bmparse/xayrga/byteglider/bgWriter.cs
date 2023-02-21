@@ -33,6 +33,11 @@ namespace xayrga.byteglider
             Write(value); // Alias it, keeps code consistent.
         }
 
+        public void WriteBE(sbyte value)
+        {
+            Write(value); // Alias it, keeps code consistent.
+        }
+
         public void WriteBE(short value)
         {
             var ip = &value;
