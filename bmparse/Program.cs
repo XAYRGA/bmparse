@@ -11,6 +11,11 @@ namespace bmparse {
         static void Main()
         {
 
+            Console.WriteLine("bmparse by XAYRGA");
+            Console.WriteLine("Source Code: https://github.com/xayrga/bmparse");
+            Console.WriteLine("Donate: https://ko-fi.com/xayrga");
+            Console.WriteLine();
+
             //*
             var www = File.ReadAllText("lm_us/project.json");
             SEBMSProject PROJ = JsonConvert.DeserializeObject<SEBMSProject>(www);
@@ -37,10 +42,16 @@ namespace bmparse {
 
             binaryReader.SavePosition("ROOT_OPEN");
             var WLF = new bmparse.BMSLinkageAnalyzer(binaryReader);
+            Console.Write("Analyzing link structure....");
             WLF.Analyze(0, 0, ReferenceType.ROOT);
+          
             var LinkageInfo = WLF.AddressReferenceAccumulator;
+            Console.WriteLine($" OK! {LinkageInfo.Count} Link references in assembly.");
 
 
+
+            Console.WriteLine($"Loading NAM file...");
+            Console.WriteLine($"No ASM hint file specfied -- skipping ");
             binaryReader.GoPosition("ROOT_OPEN");
             var WL2 = new bmparse.SEBMSDisassembler(binaryReader,LinkageInfo);
             WL2.CodePageMapping = WLF.CodePageMapping;

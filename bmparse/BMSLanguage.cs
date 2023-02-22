@@ -204,8 +204,8 @@ namespace bmparse.bms
 
             var flags = read.ReadByte();
 
-            if (flags > 0xC0)
-                Console.WriteLine($"{read.BaseStream.Position - 2:X}");
+           // if (flags > 0xC0)
+            //    Console.WriteLine($"{read.BaseStream.Position - 2:X}");
 
             Type = (byte)(flags >> 3);
             Behavior = (byte)(Type >> 2);
@@ -740,7 +740,7 @@ namespace bmparse.bms
                     stupid_size = 3;
                     break;
                 case 0xC9:
-                    stupid_size = 0;
+                    stupid_size = 1;
                     break;
                 default:
                     throw new Exception($"oof {read.BaseStream.Position:X} 0x{Instruction:X}");

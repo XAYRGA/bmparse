@@ -569,7 +569,6 @@ namespace bmparse
                             break;
                         case ReferenceType.INTERRUPT:
                             RefInfo.Name = getGlobalLabel("INTERRUPT", address, "COMMON");
-                            Console.WriteLine("COMMON INT");
                             commonAddresses.Enqueue(RefInfo);
                             break;
                         case ReferenceType.CALL:
