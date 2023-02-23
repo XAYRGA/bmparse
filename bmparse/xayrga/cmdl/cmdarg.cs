@@ -104,11 +104,11 @@ namespace xayrga.cmdl
             Console.WriteLine(text, wtf);
             Environment.Exit(0);
         }
-        public static void assert(bool cond, string text, params object[] wtf)
+        public static void assert(bool cond, string text)
         {
-            if (cond == false)
+            if (cond == true)
                 return;
-            Console.WriteLine(text, wtf);
+            Console.WriteLine(text);
             Environment.Exit(0);
         }
     }

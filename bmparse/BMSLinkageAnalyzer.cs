@@ -101,7 +101,7 @@ namespace bmparse
         }
 
 
-        public void Analyze(long src , int depth,  ReferenceType currentType )
+        public Dictionary<long,AddressReferenceInfo> Analyze(long src , int depth,  ReferenceType currentType )
         {
 
             Stack<AddressReferenceInfo> toAnalyze = new Stack<AddressReferenceInfo>();
@@ -237,7 +237,7 @@ namespace bmparse
 
                 reader.PopAnchor();
             }
-
+            return AddressReferenceAccumulator;
         }
     }
 }

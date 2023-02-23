@@ -93,7 +93,6 @@ namespace bmparse
             for (int i = 0; i < strings.Length; i++)
                 ret[i] = byte.Parse(strings[i], ns);
 
-
             return new byte[0];
         }
 
@@ -196,78 +195,74 @@ namespace bmparse
             }
 
 
-            for (int i = 0; i < Project.CategoryLogics.Length; i++)
+            for (int i = 0; i < Project.Categories.Length; i++)
             {
+                var currentCategory = Project.Categories[i];
 
+                Console.WriteLine($"Assembling CatSys {i}... {currentCategory.LogicFile}");
 
-                Console.WriteLine($"OpenADDR {writer.BaseStream.Position:X:X5}");
-                var comCurrent = Project.CategoryLogics[i];
-                Console.WriteLine($"Assembling categorylogic... {comCurrent}");
-                LoadData($"{projectBase}/{comCurrent}");
+                
+                LoadData($"{projectBase}/{currentCategory.LogicFile}");
+
                 if (!ProcBuffer())
                     return;
+
                 if (!LinkLocals())
                     return;
 
-                
-                if (lastCategoryCallOpcodeOffset > 0)
-                    Console.WriteLine($"Push opcode address {lastCategoryCallOpcodeOffset:X5}");
                 writer.Pad(32);
-                var sndList = Project.SoundLists[i];
-                var sndAddresses = new long[sndList.Sounds.Length];
-                Dictionary<string, long> unDupe = new Dictionary<string, long>();
-                for (int sndNum = 0; sndNum  < sndList.Sounds.Length; sndNum++)
-                {
-                    var snd = sndList.Sounds[sndNum];
+      
+                var sndAddresses = new long[currentCategory.Sounds.Length];
 
-                    if (unDupe.ContainsKey(snd))
+                Dictionary<string, long> unDupe = new Dictionary<string, long>();
+
+                for (int sndNum = 0; sndNum  < currentCategory.Sounds.Length; sndNum++)
+                {
+                    var snd = currentCategory.Sounds[sndNum];
+                    if (unDupe.ContainsKey(snd)) // Check if we've already referenced this binary, if so link instead of creating binary content
                     {
                         sndAddresses[sndNum] = unDupe[snd];
                         continue;
                     }
-                    sndAddresses[sndNum] = writer.BaseStream.Position;
-                    unDupe[snd] = writer.BaseStream.Position;
-
-
+                    sndAddresses[sndNum] = writer.BaseStream.Position; 
+                    unDupe[snd] = writer.BaseStream.Position; 
                     Console.WriteLine($"\tAssembling sound... {snd}");
-                    LoadData($"{projectBase}/{snd}");
+                    LoadData($"{projectBase}/{snd}"); // Load data, resets locals and cref's
          
-                    if (!ProcBuffer())
+                    if (!ProcBuffer()) // Process buffer
                         return;
 
-                    if (!LinkLocals())
+                    if (!LinkLocals()) // Try to link local label references
                         return;
 
                     writer.Pad(4);
                 }
 
-                writer.Pad(32);
-                
+                writer.Pad(32);                
                 var JumptableOffset = writer.BaseStream.Position;
-                Console.WriteLine($"JTABLE {JumptableOffset:X5}");
+ 
+                // Dump addresses into reference table
                 for (int b=0; b < sndAddresses.Length; b++)
                     writer.WriteBE((uint)sndAddresses[b],true);
 
-                writer.PushAnchor();
+                writer.PushAnchor(); // Anchor at stream pos
                 while (categoryCallAddresses.Count > 0)
                 {
                     writer.BaseStream.Position = categoryCallAddresses.Pop();
                     writer.WriteBE((uint)JumptableOffset, true);
                 }
-                writer.PopAnchor();
+                writer.PopAnchor(); // Pop anchor off the stack, return to old position
+
                 writer.Pad(32);
                 writer.Flush();
-                
-
 
             }
 
    
             LinkGlobals();
             var fc = Console.ForegroundColor;
-            Console.WriteLine("Testing link structure...");
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("SE.BMS Rebuild successful");
+            Console.WriteLine("BMS Rebuild successful");
             Console.ForegroundColor = fc;
         }
 

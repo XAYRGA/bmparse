@@ -11,15 +11,16 @@ namespace bmparse
     public class SEBMSProjectCategory {
 
         public string Name;
+        public string LogicFile; 
         public string[] Sounds;
     };
+
     public class SEBMSProject : SEBSProject
     {
 
         public string InitSection;
-        public string[] CategoryLogics;
         public string[] CommonLib;
-        public SEBMSProjectCategory[] SoundLists;
+        public SEBMSProjectCategory[] Categories;
 
         public SEBMSProject()
         {

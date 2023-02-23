@@ -34,7 +34,7 @@ namespace bmparse
         List<int[]> CategoryTableAddrs = new List<int[]>();
 
         public Dictionary<int, string> CategoryNames = new Dictionary<int, string>();
-        public Dictionary<int, Dictionary<int,string>> SoundNames = new Dictionary<int, Dictionary<int, string>>();
+        public Dictionary<int, Dictionary<int, string>> SoundNames = new Dictionary<int, Dictionary<int, string>>();
 
         bgReader reader;
 
@@ -151,7 +151,7 @@ namespace bmparse
             D_DisassembleCommon();
             D_DisassembleSounds();
 
-            reader.GoPosition("ROOT_OPEN");
+            reader.BaseStream.Position = 0;
 
             L_resetLocalScope();
             D_resetOutput();
@@ -220,21 +220,15 @@ namespace bmparse
             Dictionary<long, string> filesAtAddress = new Dictionary<long, string>();
             for (int i=0; i < CategoryTableAddrs.Count; i++)
             {
-                var projCat = Project.SoundLists[i];
-
-
-
+                var projCat = Project.Categories[i];
 
                 var bestCatName = CategoryNames.ContainsKey(i) ? $"{CategoryNames[i]}" : $"{i:X4}";
                 projCat.Name = bestCatName;
-
-        
 
                 Directory.CreateDirectory($"{ProjFolder}/sounds/{bestCatName}");
                 var ls = CategoryTableAddrs[i];
 
                 projCat.Sounds = new string[ls.Length];
- 
 
                 for (int x=0; x < ls.Length; x++)
                 {
@@ -259,9 +253,7 @@ namespace bmparse
                     {
                         var dL = SoundNames[i];
                         if (dL.ContainsKey(x))
-                        {
                             bestname = $"{x:X4} - {dL[x]}";
-                        }
                     }
         
                     var filename = $"sounds/{bestCatName}/{bestname}.txt";
@@ -281,14 +273,14 @@ namespace bmparse
         {
      
             var catNum = 0;
-            Project.CategoryLogics = new string[categoryAddresses.Count];
-            Project.SoundLists = new SEBMSProjectCategory[categoryAddresses.Count];
+
+            Project.Categories = new SEBMSProjectCategory[categoryAddresses.Count];
            
             while (categoryAddresses.Count > 0)
             {
-                xayrga.cmdl.consoleHelpers.consoleProgress("Decompiling categories...", catNum + 1, Project.SoundLists.Length,true);
+                xayrga.cmdl.consoleHelpers.consoleProgress("Decompiling categories...", catNum + 1, Project.Categories.Length,true);
                
-                Project.SoundLists[catNum] = new SEBMSProjectCategory();
+                Project.Categories[catNum] = new SEBMSProjectCategory();
                 D_resetOutput();
                 var AddrInfo = categoryAddresses.Dequeue();
                 L_resetLocalScope();
@@ -300,7 +292,7 @@ namespace bmparse
                         int[] soundS = DisassembleRoutine(AddrInfo,true, false, false);
                         CategoryTableAddrs.Add(soundS);
                         flushOutput($"{ProjFolder}/cat/{name}.txt");
-                        Project.CategoryLogics[catNum] = $"cat/{name}.txt";
+                        Project.Categories[catNum].LogicFile = $"cat/{name}.txt";
                   
                         break;
                 }
@@ -312,7 +304,6 @@ namespace bmparse
 
         private bool checkStopHint(long pos)
         {
-
             foreach (int p in StopHints)
                 if (p != 0 && p == pos)
                     return true;
@@ -394,13 +385,11 @@ namespace bmparse
                 {
                     var ld = LinkData[reader.BaseStream.Position];
                     if (ld.SourceStack != RefInfo.SourceStack)
-                    {
-                        D_Out(":@" + getGlobalLabel("LEADIN", reader.BaseStream.Position, "INLINE")); // I think sunshine did this... 
-                    }
+                        D_Out(":@" + getGlobalLabel("LEADIN", reader.BaseStream.Position, "INLINE")); // I think sunshine did this...
                     else
                     {
                         bool nBool = false;
-                        if (skpFst == false)                         
+                       if (skpFst == false)                         
                             D_Out(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
                        else if (GlobalLabels.ContainsKey(ld.Address))
                             D_Out(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
@@ -412,9 +401,7 @@ namespace bmparse
 
                 traveled[reader.BaseStream.Position] = 1;
                 var command = commandFactory.readNextCommand(reader);
-                //Console.WriteLine($"{reader.BaseStream.Position:X}  {command}");
-                //if (reader.BaseStream.Position == 0x291F)
-                    //Console.Write("Break");
+
                 AddressReferenceInfo AddressRefInfo;
                 switch (command.CommandType)
                 {

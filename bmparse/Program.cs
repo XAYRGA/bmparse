@@ -3,161 +3,105 @@ using System.IO;
 using bmparse.debug;
 using xayrga;
 using xayrga.byteglider;
+using xayrga.cmdl;
 using Newtonsoft.Json;
 
 namespace bmparse {
     public static class Program
     {
-        static void Main()
+        static void Main(string[] args)
         {
 
             Console.WriteLine("bmparse by XAYRGA");
             Console.WriteLine("Source Code: https://github.com/xayrga/bmparse");
             Console.WriteLine("Donate: https://ko-fi.com/xayrga");
             Console.WriteLine();
+        
 
-            //*
-            var www = File.ReadAllText("lm_us/project.json");
-            SEBMSProject PROJ = JsonConvert.DeserializeObject<SEBMSProject>(www);
-            var WX = new SEBMSAssembler();
-            WX.BuildProject(PROJ, "lm_us", @"E:\DOLPHIN\root\mansion_us_fresh\files\AudioRes\Audio_Modding\Sequences\LuigiSe.bms.bms");
-            //*/
+            cmdarg.cmdargs = args;
+            var command = cmdarg.assertArg(0, "Operation");
+            command = command.ToLower();
 
-            /*
-    
-            WX.LoadData("lm2/init.txt");
-
-            var FList = Directory.GetFiles("lm2/common/", "*.txt");
-            for (int i = 0; i < FList.Length;i++)
+            switch (command)
             {
-                WX.LoadData(FList[i]);
-                WX.ProcBuffer();
-            }
-            */
-            ///*
-            ///
-            /*
-            var fileStream = File.OpenRead("luigius.bms");
-            var binaryReader = new bgReader(fileStream);
-
-            binaryReader.SavePosition("ROOT_OPEN");
-            var WLF = new bmparse.BMSLinkageAnalyzer(binaryReader);
-            Console.Write("Analyzing link structure....");
-            WLF.Analyze(0, 0, ReferenceType.ROOT);
-          
-            var LinkageInfo = WLF.AddressReferenceAccumulator;
-            Console.WriteLine($" OK! {LinkageInfo.Count} Link references in assembly.");
-
-
-
-            Console.WriteLine($"Loading NAM file...");
-            Console.WriteLine($"No ASM hint file specfied -- skipping ");
-            binaryReader.GoPosition("ROOT_OPEN");
-            var WL2 = new bmparse.SEBMSDisassembler(binaryReader,LinkageInfo);
-            WL2.CodePageMapping = WLF.CodePageMapping;
-
-
-
-            WL2.CategoryNames[1] = "JA_CAT_LUIGE";
-            var w = File.ReadAllLines("luigie.txt");
-
-            WL2.SoundNames[1] = new Dictionary<int, string>();
-            for (int i=0; i < w.Length; i++)
-            {
-                WL2.SoundNames[1][i] = w[i];
-            }
-
-
-            WL2.CategoryNames[2] = "JA_CAT_VOICE";
-            w = File.ReadAllLines("voice.txt");
-
-            WL2.SoundNames[2] = new Dictionary<int, string>();
-            for (int i = 0; i < w.Length; i++)
-            {
-                WL2.SoundNames[2][i] = w[i];
-            }
-
-
-            WL2.CategoryNames[3] = "JA_CAT_ENVIRONMENT";
-            w = File.ReadAllLines("env.txt");
-
-            WL2.SoundNames[3] = new Dictionary<int, string>();
-            for (int i = 0; i < w.Length; i++)
-            {
-                WL2.SoundNames[3][i] = w[i];
-            }
-
-
-
-            WL2.CategoryNames[4] = "JA_CAT_SYSTEM";
-            w = File.ReadAllLines("sys.txt");
-
-            WL2.SoundNames[4] = new Dictionary<int, string>();
-            for (int i = 0; i < w.Length; i++)
-            {
-                WL2.SoundNames[4][i] = w[i];
-            }
-
-
-
-
-            WL2.CategoryNames[0] = "JA_CAT_ENEMY";
-            w = File.ReadAllLines("enemy.txt");
-
-            WL2.SoundNames[0] = new Dictionary<int, string>();
-            for (int i = 0; i < w.Length; i++)
-            {
-                WL2.SoundNames[0][i] = w[i];
-            }
-
-
-
-            WL2.Disassemble("lm_us");
-
-
-            //*/
-
-
-
-
-
-
-
-
-
-            // */
-
-            /*
-            foreach (KeyValuePair<long,AddressReferenceInfo> iter in LinkageInfo)
-            {
-                AddressReferenceInfo RefInfo = iter.Value;
-                long address = iter.Key;
-
-                var exRefCnt = -1;
-                var exRefLA = 0L;
-                for (int i=0; i < RefInfo.ReferenceStackSources.Count; i++)
-                {
-                    var RSS = RefInfo.ReferenceStackSources[i];
-                    if (RSS!=exRefLA)
+                case "disassemble":
                     {
-                        exRefLA= RSS;
-                        exRefCnt++;
-                    }
-                }
-                if (exRefCnt > 0)
-                {
-                    Console.WriteLine($"{RefInfo.Type} A:0x{address:X} Extern Refs:{exRefCnt}  ");
+                        var bmsFile = cmdarg.assertArg(1, "BMS File");
+                        var projectOut = cmdarg.assertArg(2, "Project Folder");
 
-                    for (int i = 0; i < RefInfo.ReferenceStackSources.Count; i++)
+                        cmdarg.assert(File.Exists(bmsFile), $"Cannot locate BMSFile {bmsFile}");
+
+                        var nameFilePath = cmdarg.findDynamicStringArgument("-namefile", "NONE");
+                        var nameContainer = new SEBSNameFile();
+                        if (nameFilePath!="NONE")
+                        {
+                            Console.WriteLine($"Loading NAM file {nameFilePath}");
+                            cmdarg.assert(File.Exists(nameFilePath), $"Cannot locate specified NAM file {nameFilePath}");
+
+                            var fHnd = File.OpenRead(nameFilePath);
+                            try {
+                       
+                                var reader = new bgReader(fHnd);
+                                nameContainer.Read(reader);
+                                reader.Close();
+                            } catch (Exception E)
+                            {
+                                cmdarg.assert($"NAMFile is corrupted!\n{E}");
+                            }
+                        }
+
+                        var bmsHandle = File.OpenRead(bmsFile);
+                        var bmsReader = new bgReader(bmsHandle);
+
+                        Console.Write("Analyzing link structure....");
+                        var LinkAnalyzer = new BMSLinkageAnalyzer(bmsReader);
+                        bmsReader.PushAnchor();
+                        var LinkageInfo =  LinkAnalyzer.Analyze(0, 0, ReferenceType.ROOT); // Important! Reference 0x00 only here! 
+                        bmsReader.PopAnchor();
+                        Console.WriteLine($" OK! {LinkageInfo.Count} Link references in assembly.");
+
+                        var Disassembler = new SEBMSDisassembler(bmsReader, LinkageInfo)
+                        {
+                            SoundNames = nameContainer.SoundNames,
+                            CategoryNames = nameContainer.CategoryNames,
+                            CodePageMapping = LinkAnalyzer.CodePageMapping // Need to clean this up. Oversight.
+                        };
+
+
+                        Disassembler.Disassemble(projectOut);
+                        break;
+                    }
+                case "assemble":
                     {
-                        var RSS = RefInfo.ReferenceStackSources[i];
-                        Console.WriteLine($"\t\t\tR-Stack 0x{RSS:X}");
+                        var projectFolder = cmdarg.assertArg(1, "ProjectFolder");
+                        var outFile = cmdarg.assertArg(2, "BMSFile");
+                        cmdarg.assert(Directory.Exists(projectFolder), $"Project Folder {projectFolder} doesn't exist.");
+                        cmdarg.assert(File.Exists($"{projectFolder}/project.json"),$"Project file at {projectFolder} doesn't contain a project.json! (Not a SEBS project?)");
+                        var projectBuffer = File.ReadAllText($"{projectFolder}/project.json");
+                        SEBMSProject Project = null;
+                        try
+                        {
+                             Project = JsonConvert.DeserializeObject<SEBMSProject>(projectBuffer);
+                        }catch (Exception E)
+                        {
+                            cmdarg.assert($"{E.ToString()}\n==============\nProblem loading project file! Check your project.json!");
+                            return;
+                        }
+                        SEBMSAssembler Assembler = new SEBMSAssembler();
+                        Assembler.BuildProject(Project,projectFolder, outFile);
+                        break;
                     }
-                }
+                default:
+                    Console.WriteLine("Welcome to SEBS / BMPARSE!");
+                    Console.WriteLine("Usage: \n[] 's indicate optional arguments!");
+                    Console.WriteLine("bmparse <command> <command arguments>\n");
+                    Console.WriteLine("");
+                    Console.WriteLine("bmparse disassemble <se.bms file> <output folder> [-namefile <file.nam>] [-hintfile <file.hin>]\n");
+                    Console.WriteLine("bmparse assemble <project foler> <output file> ");
+                    Console.WriteLine("\nIssues?\nhttps://www.github.com/xayrga/bmparse");
+                    break;
+
             }
-            */
-
-
 
         }
     }
