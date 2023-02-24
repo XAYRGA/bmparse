@@ -200,7 +200,6 @@ namespace bmparse
                 var currentCategory = Project.Categories[i];
 
                 Console.WriteLine($"Assembling CatSys {i}... {currentCategory.LogicFile}");
-
                 
                 LoadData($"{projectBase}/{currentCategory.LogicFile}");
 
@@ -338,6 +337,14 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
+                case "INTTIME":
+                    {
+                        var interruptLevel = checkArgument(ASMLine, 0);
+                        var inst = new InterruptTimer();
+                        inst.TimerData = (byte)parseNumber(interruptLevel);
+                        inst.write(writer);
+                        break;
+                    }
                 case "SIMPLENV":
                     {
                         var envID = checkArgument(ASMLine, 0);
@@ -379,6 +386,20 @@ namespace bmparse
                         inst.Parameter= (byte)parseNumber(a1);
                         inst.Value = (short)parseNumber(a2);
                         inst.Unknown = (byte)parseNumber(a3);
+
+                        inst.write(writer);
+                        break;
+                    }
+                case "PANSWEEP":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+
+                        var inst = new PanSweepSet();
+                        inst.A = (byte)parseNumber(a1);
+                        inst.B = (byte)parseNumber(a2);
+                        inst.C = (byte)parseNumber(a3);
 
                         inst.write(writer);
                         break;
@@ -620,6 +641,16 @@ namespace bmparse
                         var inst = new ParameterCompare8();
                         inst.Source = (byte)parseNumber(a1);
                         inst.Value = (byte)parseNumber(a2);
+                        inst.write(writer);
+                        break;
+                    }
+                case "CMP16":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var inst = new ParameterCompare16();
+                        inst.Source = (byte)parseNumber(a1);
+                        inst.Value = (short)parseNumber(a2);
                         inst.write(writer);
                         break;
                     }
@@ -944,7 +975,28 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
-           
+                case "CRINGE4":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+                        var a4 = checkArgument(ASMLine, 3);
+                        var inst = new OpOverride4();
+                        inst.Instruction = (byte)parseNumber(a1);
+                        inst.ArgumentMask = (byte)parseNumber(a2);
+                        inst.ArgumentMaskLookup = parseHexArgument(a3);
+                        inst.Stupid = parseHexArgument(a4);
+                        inst.write(writer);
+                        break;
+                    }
+                case "PRINT":
+
+                    // Don't reassemble for now.
+
+                break; 
+
+
+
 
 
                 default:

@@ -667,7 +667,7 @@ namespace bmparse.bms
             switch (Instruction)
             {
                 case 0xD8:
-                    stupid_size = 9;
+                    stupid_size = 8;
                     break;
                 default:
                     throw new Exception($"oof {read.BaseStream.Position:X} 0x{Instruction:X}");
@@ -741,6 +741,9 @@ namespace bmparse.bms
                     break;
                 case 0xC9:
                     stupid_size = 1;
+                    break;
+                case 0xF1:
+                    stupid_size = 0;
                     break;
                 default:
                     throw new Exception($"oof {read.BaseStream.Position:X} 0x{Instruction:X}");
@@ -1304,6 +1307,38 @@ namespace bmparse.bms
         {
             Parameter = read.ReadByte();
             Value = read.ReadSByte();
+            Duration = read.ReadUInt16BE();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Parameter);
+            write.WriteBE(Value);
+            write.WriteBE(Duration);
+        }
+    }
+
+    public class PERFS16DURU16 : bmscommand
+    {
+        public byte Parameter;
+        public short Value;
+        public ushort Duration;
+
+        public PERFS16DURU16()
+        {
+            CommandType = BMSCommandType.PERF_S16_DUR_U16;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TPRMS16_DU16 {Parameter:X}h {Value} {Duration:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Parameter = read.ReadByte();
+            Value = read.ReadInt16BE();
             Duration = read.ReadUInt16BE();
         }
 

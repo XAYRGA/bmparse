@@ -49,6 +49,7 @@ namespace bmparse.bms
             OpcodeToClass[(byte)BMSCommandType.WRITEPORT] = typeof(WritePort);
             OpcodeToClass[(byte)BMSCommandType.CHILDWRITEPORT] = typeof(ChildWritePort);
             OpcodeToClass[(byte)BMSCommandType.PERF_S8_DUR_U16] = typeof(PERFS8DURU16);
+            OpcodeToClass[(byte)BMSCommandType.PERF_S16_DUR_U16] = typeof(PERFS16DURU16);
             OpcodeToClass[(byte)BMSCommandType.PERF_S16_NODUR] = typeof(PERFS16);
             OpcodeToClass[(byte)BMSCommandType.PERF_S16_DUR_U8_9E] = typeof(PERFS16U89E);
             OpcodeToClass[(byte)BMSCommandType.PERF_S8_DUR_U8] = typeof(PERFS8DURU8);

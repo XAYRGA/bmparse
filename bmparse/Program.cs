@@ -16,8 +16,10 @@ namespace bmparse {
             Console.WriteLine("Source Code: https://github.com/xayrga/bmparse");
             Console.WriteLine("Donate: https://ko-fi.com/xayrga");
             Console.WriteLine();
-        
 
+#if DEBUG 
+            //args = ("disassemble se.bms outlmao").Split(' ');
+#endif
             cmdarg.cmdargs = args;
             var command = cmdarg.assertArg(0, "Operation");
             command = command.ToLower();
