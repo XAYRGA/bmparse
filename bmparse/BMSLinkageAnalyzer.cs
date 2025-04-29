@@ -120,7 +120,7 @@ namespace bmparse
                 CodePageMapping[Position] = src;
                
                 var command = commandFactory.readNextCommand(reader);
-        
+                //Console.WriteLine($"{command} {Position:X}");
                 AddressReferenceInfo AddressRefInfo;
                 switch (command.CommandType)
                 {

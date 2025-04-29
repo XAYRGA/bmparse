@@ -112,7 +112,7 @@ namespace bmparse
 
         private void D_Out(string ou)
         {
-            //Console.WriteLine(ou)
+            //Console.WriteLine(ou);
             output.AppendLine(ou);
         }
 
@@ -131,6 +131,30 @@ namespace bmparse
         {
             LocalLabels.Clear();
             labelLocalAccumulator.Clear();
+        }
+
+        public void DisassembleQuick(string data)
+        {
+
+            L_resetLocalScope();
+            D_resetOutput();
+            DisassembleRoutine(new AddressReferenceInfo()
+            {
+                Address = 0,
+                Depth = 0,
+                ReferenceStackSources = {
+                    1,
+                    2,
+                    3,
+                    69,
+                    420 },
+                MetaData = 0,
+                Name = "ROOT",
+                ImplicitCallTermination = true,
+                RefCount = 50000,
+                SourceStack = 0,
+            });
+            flushOutput(data);
         }
 
         public void Disassemble(string SynthsAreSubbies)
@@ -503,7 +527,7 @@ namespace bmparse
                 switch (rf.Type)
                 {
                     case ReferenceType.CALLTABLE:
-                        throw new Exception($"Nested calltable not supported. {rf.Address:X5}");
+                        //throw new Exception($"Nested calltable not supported. {rf.Address:X5}");
                         break;
                     case ReferenceType.ENVELOPE:
                         D_Out(getBanner("ENVELOPE",true));

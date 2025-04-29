@@ -225,7 +225,7 @@ namespace bmparse
                     }
                     sndAddresses[sndNum] = writer.BaseStream.Position; 
                     unDupe[snd] = writer.BaseStream.Position; 
-                    Console.WriteLine($"\tAssembling sound... {snd}");
+                    Console.WriteLine($"\tAssembling sd... {snd}");
                     LoadData($"{projectBase}/{snd}"); // Load data, resets locals and cref's
          
                     if (!ProcBuffer()) // Process buffer
@@ -233,6 +233,8 @@ namespace bmparse
 
                     if (!LinkLocals()) // Try to link local label references
                         return;
+
+       
 
                     writer.Pad(4);
                 }
@@ -264,6 +266,30 @@ namespace bmparse
             Console.WriteLine("BMS Rebuild successful");
             Console.ForegroundColor = fc;
         }
+
+        public void BuildQuick(string asmFile, string fileOut)
+        {
+            var outFile = File.OpenWrite(fileOut);
+            var writer = new bgWriter(outFile);
+            SetOutput(writer);
+
+            LoadData(asmFile);
+            if (!ProcBuffer())
+                return;
+            if (!LinkLocals())
+                return;
+
+            writer.Pad(32);
+            writer.Flush();
+
+
+            LinkGlobals();
+            var fc = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("BMS Rebuild successful");
+            Console.ForegroundColor = fc;
+        }
+
 
         public string ProcInstruction(string[] ASMLine)
         {
@@ -634,6 +660,18 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
+                case "TPRMS16_DU8":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+                        var inst = new PERFS16DURU8();
+                        inst.Parameter = (byte)parseNumber(a1);
+                        inst.Value = (short)parseNumber(a2);
+                        inst.Duration = (byte)parseNumber(a3);
+                        inst.write(writer);
+                        break;
+                    }
                 case "CMP8":
                     {
                         var a1 = checkArgument(ASMLine, 0);
@@ -719,7 +757,7 @@ namespace bmparse
                     {
                         var val = checkArgument(ASMLine, 0);
                         var inst = new Transpose();
-                        inst.Transposition = (byte)parseNumber(val);
+                        inst.Transposition = (sbyte)parseNumber(val);
                         inst.write(writer);
                         break;
                     }
@@ -990,24 +1028,49 @@ namespace bmparse
                         break;
                     }
                 case "PRINT":
+                    {
+                        // Don't reassemble for now.
+                        var inst = new PrintF() {  RegisterReferences = new byte[0] };
+                        var data = String.Join(" ", ASMLine);
 
-                    // Don't reassemble for now.
+                        int quoteIndex, endQuote;
+                        if ((quoteIndex = data.IndexOf('"')) == -1)
+                            compileError($"printf without message");
 
-                break; 
+                        if ((endQuote = data.IndexOf('"', quoteIndex + 1)) == -1)
+                            compileError($"Unfinished string near {data}");
 
+                        var argCount = data.Count(f => f == '%');
+                        if (argCount > 0)
+                        {
+                            int startBrack = data.IndexOf("{");
+                            int endBrack = data.IndexOf("}");
+                            if (startBrack == -1 || endBrack == -1)
+                                compileError("Not enough arguments to satisfy references in string (%)");
 
+                            var regString = data.Substring(startBrack + 1, endBrack - 1);
+                            var regArgs = regString.Split(',');
+                            List<byte> args = new List<byte>();
+                            for (int i = 0; i < regArgs.Length; i++)
+                                args.Add((byte)parseNumber(regArgs[i]));
 
+                            if (args.Count < argCount)
+                                compileError("Not enough arguments to satisfy references in string (%)");
 
+                            inst.RegisterReferences = args.ToArray();                       
+
+                        }
+
+                        inst.Message = data.Substring(quoteIndex + 1, endQuote - quoteIndex - 1);
+                        inst.write(writer);
+                        break;
+                    }
 
                 default:
                     {
                         compileError($"Syntax Error: Unknown Instruction '{Instruction}'");
                         break;
                     }
-
-
-
-
             }
 
             return null;
@@ -1074,6 +1137,10 @@ namespace bmparse
             {
                 var lin = currentData[currentLine];
                 var spl = lin.Split(' ');
+#if DEBUG
+                ProcInstruction(spl);
+ 
+#else
                 try
                 {
                     ProcInstruction(spl);
@@ -1087,8 +1154,10 @@ namespace bmparse
 
                     return false;
                 }
+#endif
                 currentLine++;
             }
+
             return true;
         }
 

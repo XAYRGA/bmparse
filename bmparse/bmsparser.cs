@@ -64,6 +64,8 @@ namespace bmparse.bms
             OpcodeToClass[(byte)BMSCommandType.PARAM_CMP_16] = typeof(ParameterCompare16);
             OpcodeToClass[(byte)BMSCommandType.PARAM_CMP_R] = typeof(ParameterCompareRegister);
             OpcodeToClass[(byte)BMSCommandType.SETPARAM_90] = typeof(ParameterSet8_90);
+            //
+            OpcodeToClass[(byte)BMSCommandType.SETPARAM_91] = typeof(ParameterSet16_91);
             OpcodeToClass[(byte)BMSCommandType.SETPARAM_92] = typeof(ParameterSet16_92);
             OpcodeToClass[(byte)BMSCommandType.SETLASTNOTE] = typeof(SetLastNote);
             OpcodeToClass[(byte)BMSCommandType.PARAM_BITWISE] = typeof(ParamBitwise);
@@ -75,6 +77,14 @@ namespace bmparse.bms
             OpcodeToClass[(byte)BMSCommandType.BUSCONNECT] = typeof(BusConnect);
             OpcodeToClass[(byte)BMSCommandType.OUTSWITCH] = typeof(OutSwitch);
             OpcodeToClass[(byte)BMSCommandType.PARAM_SUBTRACT] = typeof(ParameterSubtract);
+            OpcodeToClass[(byte)BMSCommandType.CHECKPORTIMPORT] = typeof(CheckPortImport);
+            OpcodeToClass[(byte)BMSCommandType.TIMERELATE_JV0] = typeof(TimeRelateJV0);
+            OpcodeToClass[(byte)BMSCommandType.IIRSET] = typeof(IIRSet);
+            OpcodeToClass[0x89] = typeof(IIRSet);
+            OpcodeToClass[0x8A] = typeof(IIRSet);
+            OpcodeToClass[(byte)BMSCommandType.PERF_U8_DUR_U8] = typeof(PERFU8DURU8);
+            OpcodeToClass[(byte)BMSCommandType.PERF_S16_DUR_U8] = typeof(PERFS16DURU8);
+
         }
 
         public bmscommand readNextCommand(bgReader reader)
@@ -94,7 +104,7 @@ namespace bmparse.bms
             else if (opcode >= 0x81 && opcode < 0x88)
             {
                 var cmd = new NoteOffCommand();
-                cmd.Voice = (byte)(opcode & 0xF); // -1;
+                cmd.Voice = (byte)((opcode & 0xF) - 1); // -1;
                 cmd.read(reader);
                 outputCommand = cmd;
             } else

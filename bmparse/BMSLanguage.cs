@@ -82,6 +82,7 @@ namespace bmparse.bms
         CHECKPORTIMPORT = 0xCD,
         CHECKPORTEXPORT = 0xCE,
         CMD_WAITR = 0xCF,
+        TIMERELATE_JV0 = 0xD0,
         PARENTWRITEPORT = 0xD1,
         CHILDWRITEPORT = 0xD2,
         SETLASTNOTE = 0xD4,
@@ -169,7 +170,7 @@ namespace bmparse.bms
 
         public override void write(bgWriter write)
         {
-            write.WriteBE((byte)((byte)BMSCommandType.NOTE_OFF + Voice));
+            write.WriteBE((byte)((byte)BMSCommandType.NOTE_OFF + Voice ));
         }
 
         public override string getAssemblyString(string[] data = null)
@@ -297,6 +298,8 @@ namespace bmparse.bms
             write.WriteBE(Delay);
         }
     }
+
+
 
     public class WaitRegister : bmscommand
     {
@@ -737,7 +740,7 @@ namespace bmparse.bms
                     stupid_size = 9;
                     break;
                 case 0xD4:
-                    stupid_size = 3;
+                    stupid_size = 5;
                     break;
                 case 0xC9:
                     stupid_size = 1;
@@ -933,7 +936,7 @@ namespace bmparse.bms
 
     public class Transpose : bmscommand
     {
-        public byte Transposition;
+        public sbyte Transposition;
 
         public Transpose()
         {
@@ -947,7 +950,7 @@ namespace bmparse.bms
 
         public override void read(bgReader read)
         {
-            Transposition = read.ReadByte();
+            Transposition = read.ReadSByte();
         }
 
         public override void write(bgWriter write)
@@ -1090,6 +1093,34 @@ namespace bmparse.bms
         }
     }
 
+
+    public class IIRSet : bmscommand
+    {
+        public byte Cutoff;
+
+        public IIRSet()
+        {
+            CommandType = BMSCommandType.IIRSET;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"IIRS {Cutoff:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Cutoff = read.ReadByte();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)BMSCommandType.IIRSET);
+            write.WriteBE(Cutoff);
+        }
+    }
+
+
     public class SimpleADSR : bmscommand
     {
         public short Attack;
@@ -1224,6 +1255,65 @@ namespace bmparse.bms
             write.WriteBE((byte)CommandType);
             write.WriteBE(Source);
             write.WriteBE(Destination);
+        }
+    }
+
+
+
+    public class CheckPortImport : bmscommand
+    {
+        public byte Port;
+        
+
+        public CheckPortImport()
+        {
+            CommandType = BMSCommandType.CHECKPORTIMPORT;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"CHPORTI {Port:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Port = read.ReadByte(); 
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Port);
+
+        }
+    }
+
+
+    public class TimeRelateJV0 : bmscommand
+    {
+        public byte[] arguments;
+
+
+
+        public TimeRelateJV0()
+        {
+            CommandType = BMSCommandType.TIMERELATE_JV0;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TRELJV0 {getByteString(arguments)}");
+        }
+
+        public override void read(bgReader read)
+        {
+            arguments = read.ReadBytes(5);     
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.Write(arguments);
         }
     }
 
@@ -1539,6 +1629,40 @@ namespace bmparse.bms
         }
     }
 
+
+    public class PERFU8DURU8 : bmscommand
+    {
+        public byte Parameter;
+        public byte Value;
+        public byte Duration;
+
+
+        public PERFU8DURU8()
+        {
+            CommandType = BMSCommandType.PERF_U8_DUR_U8;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TPRMU8_DU8 {Parameter:X}h {Value} {Duration:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Parameter = read.ReadByte();
+            Value = read.ReadByte();
+            Duration = read.ReadByte();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Parameter);
+            write.WriteBE(Value);
+            write.WriteBE(Duration);
+        }
+    }
+
     public class ParameterSetRegister : bmscommand
     {
         public byte Source;
@@ -1825,6 +1949,36 @@ namespace bmparse.bms
         {
             Source = read.ReadByte();
             Value = read.ReadByte();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Value);
+        }
+    }
+
+
+    public class ParameterSet16_91 : bmscommand
+    {
+        public byte Source;
+        public short Value;
+
+        public ParameterSet16_91()
+        {
+            CommandType = BMSCommandType.SETPARAM_91;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SETPARAM91 {Source:X}h {Value:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Source = read.ReadByte();
+            Value = read.ReadInt16();
         }
 
         public override void write(bgWriter write)
