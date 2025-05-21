@@ -191,12 +191,14 @@ namespace bmparse
                     return;
                 if (!LinkLocals())
                     return;
-                writer.Pad(4);
+             
             }
 
 
             for (int i = 0; i < Project.Categories.Length; i++)
             {
+
+                writer.Pad(4);
                 var currentCategory = Project.Categories[i];
 
                 Console.WriteLine($"Assembling CatSys {i}... {currentCategory.LogicFile}");
@@ -209,12 +211,12 @@ namespace bmparse
                 if (!LinkLocals())
                     return;
 
-                writer.Pad(32);
+    
       
                 var sndAddresses = new long[currentCategory.Sounds.Length];
 
                 Dictionary<string, long> unDupe = new Dictionary<string, long>();
-
+          
                 for (int sndNum = 0; sndNum  < currentCategory.Sounds.Length; sndNum++)
                 {
                     var snd = currentCategory.Sounds[sndNum];
@@ -225,7 +227,7 @@ namespace bmparse
                     }
                     sndAddresses[sndNum] = writer.BaseStream.Position; 
                     unDupe[snd] = writer.BaseStream.Position; 
-                    Console.WriteLine($"\tAssembling sd... {snd}");
+                    Console.WriteLine($"\tAssembling sound... {snd}");
                     LoadData($"{projectBase}/{snd}"); // Load data, resets locals and cref's
          
                     if (!ProcBuffer()) // Process buffer
@@ -236,16 +238,16 @@ namespace bmparse
 
        
 
-                    writer.Pad(4);
+                   // writer.Pad(4);
                 }
 
-                writer.Pad(32);                
+                 
                 var JumptableOffset = writer.BaseStream.Position;
  
                 // Dump addresses into reference table
                 for (int b=0; b < sndAddresses.Length; b++)
                     writer.WriteBE((uint)sndAddresses[b],true);
-
+ 
                 writer.PushAnchor(); // Anchor at stream pos
                 while (categoryCallAddresses.Count > 0)
                 {
@@ -254,7 +256,7 @@ namespace bmparse
                 }
                 writer.PopAnchor(); // Pop anchor off the stack, return to old position
 
-                writer.Pad(32);
+    
                 writer.Flush();
 
             }
@@ -263,7 +265,7 @@ namespace bmparse
             LinkGlobals();
             var fc = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("BMS Rebuild successful");
+            Console.WriteLine("SE.BMS Rebuild successful");
             Console.ForegroundColor = fc;
         }
 
@@ -279,7 +281,8 @@ namespace bmparse
             if (!LinkLocals())
                 return;
 
-            writer.Pad(32);
+   
+           
             writer.Flush();
 
 
@@ -382,6 +385,34 @@ namespace bmparse
                         inst.write(writer);
                     }
                     break;
+
+                case "VIBDEPTHMIDI":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var inst = new VibratoDepthMidi();
+                        inst.Depth = (byte)parseNumber(a1);
+                        inst.Unk = (byte)parseNumber(a2);
+                        inst.write(writer);
+                        break;
+                    }
+
+                case "VIBPITCH":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var inst = new VibratoPitch();
+                        inst.Pitch = (byte)parseNumber(a1);
+                        inst.write(writer);
+                        break;
+                    }
+                case "VIBDEPTH":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var inst = new VibratoDepth();
+                        inst.Depth = (byte)parseNumber(a1);
+                        inst.write(writer);
+                        break;
+                    }
                 case "PARAM8":
                     {
                         var a1 = checkArgument(ASMLine, 0);
@@ -483,6 +514,14 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
+                case "VOLMODE":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var inst = new VolumeMode();
+                        inst.Mode = (byte)parseNumber(a1);
+                        inst.write(writer);
+                        break;
+                    }
                 case "READPORT":
                     {
                         var a1 = checkArgument(ASMLine, 0);
@@ -552,6 +591,19 @@ namespace bmparse
                         referenceLabel(writer.BaseStream.Position, 2, lbl, AddressSize.U24);
                         var inst = new Call();
                         inst.Flags = (byte)parseNumber(cond);
+                        inst.Address = 0; // Will get filled by label ref later.
+                        inst.write(writer);
+                        break;
+                    }
+
+                case "CALLTABLE":
+                    {
+                        var tgtReg = checkArgument(ASMLine, 0);
+                        var lbl = checkArgument(ASMLine, 1);
+                        referenceLabel(writer.BaseStream.Position, 3, lbl, AddressSize.U24);
+                        var inst = new Call();
+                        inst.Flags = 0xC0;
+                        inst.TargetRegister = (byte)parseNumber(tgtReg);
                         inst.Address = 0; // Will get filled by label ref later.
                         inst.write(writer);
                         break;
@@ -996,7 +1048,7 @@ namespace bmparse
                     }
                 case "STOP":// finishes envelope
                     {
-                        writer.Pad(4);
+                        //writer.Pad(4);
                         break;
                     }
                 case "CRINGE1":
@@ -1032,6 +1084,7 @@ namespace bmparse
                         // Don't reassemble for now.
                         var inst = new PrintF() {  RegisterReferences = new byte[0] };
                         var data = String.Join(" ", ASMLine);
+                
 
                         int quoteIndex, endQuote;
                         if ((quoteIndex = data.IndexOf('"')) == -1)
@@ -1043,6 +1096,7 @@ namespace bmparse
                         var argCount = data.Count(f => f == '%');
                         if (argCount > 0)
                         {
+
                             int startBrack = data.IndexOf("{");
                             int endBrack = data.IndexOf("}");
                             if (startBrack == -1 || endBrack == -1)
@@ -1054,8 +1108,9 @@ namespace bmparse
                             for (int i = 0; i < regArgs.Length; i++)
                                 args.Add((byte)parseNumber(regArgs[i]));
 
+                           
                             if (args.Count < argCount)
-                                compileError("Not enough arguments to satisfy references in string (%)");
+                                compileError($"Not enough arguments to satisfy references in string (%) {args.Count} {argCount}");
 
                             inst.RegisterReferences = args.ToArray();                       
 

@@ -17,9 +17,17 @@ namespace bmparse {
             Console.WriteLine("Donate: https://ko-fi.com/xayrga");
             Console.WriteLine();
 
+
+            args = new string[]{
+                "assemble",
+                "ww",
+                "ww.bms"
+            };
      
 
             cmdarg.cmdargs = args;
+
+
             var command = cmdarg.assertArg(0, "Operation");
             command = command.ToLower();
 

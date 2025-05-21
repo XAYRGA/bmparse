@@ -8,6 +8,8 @@ using xayrga.byteglider;
 using bmparse.bms;
 using Newtonsoft.Json;
 using System.Diagnostics;
+using System.Drawing;
+
 
 namespace bmparse
 {
@@ -157,19 +159,19 @@ namespace bmparse
             flushOutput(data);
         }
 
-        public void Disassemble(string SynthsAreSubbies)
+        public void Disassemble(string FolderName)
         {
 
             Project = new SEBMSProject();
 
             BuildLinkInfo();
 
-            this.ProjFolder = SynthsAreSubbies;
+            this.ProjFolder = FolderName;
 
-            Directory.CreateDirectory($"{SynthsAreSubbies}");
-            Directory.CreateDirectory($"{SynthsAreSubbies}/cat");
-            Directory.CreateDirectory($"{SynthsAreSubbies}/common");
-            Directory.CreateDirectory($"{SynthsAreSubbies}/sounds/");
+            Directory.CreateDirectory($"{FolderName}");
+            Directory.CreateDirectory($"{FolderName}/cat");
+            Directory.CreateDirectory($"{FolderName}/common");
+            Directory.CreateDirectory($"{FolderName}/sounds/");
 
             D_DisassembleCategories();
             D_DisassembleCommon();
@@ -198,9 +200,9 @@ namespace bmparse
                 SourceStack = 0, });
 
             Project.InitSection = "init.txt";
-            flushOutput($"{SynthsAreSubbies}/init.txt");
+            flushOutput($"{FolderName}/init.txt");
 
-            File.WriteAllText($"{SynthsAreSubbies}/project.json", JsonConvert.SerializeObject(Project, Formatting.Indented));
+            File.WriteAllText($"{FolderName}/project.json", JsonConvert.SerializeObject(Project, Formatting.Indented));
         }
 
 
@@ -381,6 +383,11 @@ namespace bmparse
             D_Out("STOP #Envelope Termination");
         }
 
+
+
+
+
+
         private string getLabelGeneric(string type, long address, out bool newCreated, string prm = null)
         {
             newCreated = false;
@@ -410,17 +417,18 @@ namespace bmparse
                     var ld = LinkData[reader.BaseStream.Position];
                     if (ld.SourceStack != RefInfo.SourceStack)
                         D_Out(":@" + getGlobalLabel("LEADIN", reader.BaseStream.Position, "INLINE")); // I think sunshine did this...
+                    else if (ld.ForceGlobalRef)
+                        D_Out(":@" + getGlobalLabel("GLOBAL_LEADIN", reader.BaseStream.Position, "INLINE")); // I think sunshine did this...                   
                     else
                     {
                         bool nBool = false;
-                       if (skpFst == false)                         
+                        if (skpFst == false)
                             D_Out(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
-                       else if (GlobalLabels.ContainsKey(ld.Address))
+                        else if (GlobalLabels.ContainsKey(ld.Address))
                             D_Out(":" + getLabelGeneric(ld.Type.ToString(), ld.Address, out nBool));
 
                         skpFst = false;
                     }
-            
                 }
 
                 traveled[reader.BaseStream.Position] = 1;
@@ -430,32 +438,51 @@ namespace bmparse
                 switch (command.CommandType)
                 {
                     case BMSCommandType.CALLTABLE:
-                        var callt = (Call)command;
+                        var callt = (Call)command;              
                         break;
+
                     case BMSCommandType.CALL:
-                        var call = (Call)command;
-                        if (call.Flags != 0xC0)
                         {
+                            var call = (Call)command;
                             bool newCreated = false;
-                            line = call.getAssemblyString(new string[] { getLabelGeneric("CALL", call.Address, out newCreated) });
-                            if (newCreated)
-                                LocalReference.Enqueue(LinkData[call.Address]);
-                        }
-                        else
-                        {
-                            if (isCategory)
+                            if (call.Flags != 0xC0)
                             {
-                                reader.PushAnchor();
-                                reader.BaseStream.Position = call.Address;
-                                returnValue = guesstimateJumptableSize();
-                                reader.PopAnchor();
-                                line = "%CATEGORY_CALLTABLE";
-                            }  else
+
+                                line = call.getAssemblyString(new string[] { getLabelGeneric($"CALL_{call.Address:X}", call.Address, out newCreated) });
+                                if (newCreated)
+                                    LocalReference.Enqueue(LinkData[call.Address]);
+                            }
+                            else
                             {
-                                bool newCreated = false;
-                                LocalReference.Enqueue(LinkData[call.Address]);
-                                line = "CALLTABLE " + getLabelGeneric("CALLTABLE", call.Address, out newCreated);
-                            }                 
+                                if (isCategory)
+                                {
+                                    reader.PushAnchor();
+                                    reader.BaseStream.Position = call.Address;
+                                    returnValue = guesstimateJumptableSize();
+                                    reader.PopAnchor();
+                                    line = "%CATEGORY_CALLTABLE";
+                                }
+                                else
+                                {
+
+                                    /*
+                                    bool newCreated = false;
+                                    LocalReference.Enqueue(LinkData[call.Address]);
+                                    line = "CALLTABLE " + getLabelGeneric("CALLTABLE", call.Address, out newCreated);
+
+
+                                    reader.PushAnchor();
+                                    reader.BaseStream.Position = call.Address;
+                                    returnValue = guesstimateJumptableSize();
+                                    reader.PopAnchor();
+                                    for (int i = 0;)*/
+
+                                    line = call.getAssemblyString(new string[] { getLabelGeneric($"CALLTABLE_{call.Address:X}", call.Address, out newCreated) });
+                                    if (newCreated)
+                                        LocalReference.Enqueue(LinkData[call.Address]);
+
+                                }
+                            }
                         }
                         break;
                     case BMSCommandType.JMP:
@@ -463,7 +490,7 @@ namespace bmparse
                             var jmp = (Jump)command;
 
                             bool newCreated = false;
-                            line = jmp.getAssemblyString(new string[] { getLabelGeneric("JUMP", jmp.Address, out newCreated) }); //+ $" #CS {RefInfo.Address:X5} OCA {reader.BaseStream.Position:X5} OTA {jmp.Address:X5} SS {RefInfo.SourceStack:X5}";
+                            line = jmp.getAssemblyString(new string[] { getLabelGeneric($"JUMP_{jmp.Address:X}", jmp.Address, out newCreated) }); //+ $" #CS {RefInfo.Address:X5} OCA {reader.BaseStream.Position:X5} OTA {jmp.Address:X5} SS {RefInfo.SourceStack:X5}";
 
                             if (jmp.Flags == 0) 
                                 STOP = true;
@@ -495,7 +522,7 @@ namespace bmparse
                         {
                             bool newCreated = false;
                             var setInterrupt = (SetInterrupt)command;
-                            line = setInterrupt.getAssemblyString(new string[] { getLabelGeneric("INTERRUPT", setInterrupt.Address, out newCreated) });
+                            line = setInterrupt.getAssemblyString(new string[] { getLabelGeneric($"INTERRUPT_{setInterrupt.Address}", setInterrupt.Address, out newCreated) });
                             if (newCreated)
                                 LocalReference.Enqueue(LinkData[setInterrupt.Address]);
                         }
@@ -521,12 +548,37 @@ namespace bmparse
                 if (STOP)
                     break;
             }
+            bool dummy = false;
             while (LocalReference.Count > 0)
             {
                 var rf = LocalReference.Dequeue();
                 switch (rf.Type)
                 {
                     case ReferenceType.CALLTABLE:
+                        {
+                            reader.BaseStream.Position = rf.Address;
+                            var addresses = guesstimateJumptableSize();
+                            var label = getLabelGeneric("CALLTABLE", rf.Address, out dummy);
+                            D_Out($"\n{getBanner(label)}");
+                            D_Out($":{label}");
+                            for (int i = 0; i < addresses.Length; i++)
+                            {
+                                var address = addresses[i];
+                                var ld = LinkData[address];
+                                var exrefs = getExternalReferenceCount(ld);
+
+                                string labl = "";
+                                if (exrefs == 0)  // If this is referenced from multiple sources, then it should be global
+                                    labl = "@" + getGlobalLabel("TABLE_CALL", address);
+                                 else
+                                    labl = getLabelGeneric("TABLE_CALL", address, out dummy); 
+
+                                D_Out("REF24 " +  labl);
+
+                                LocalReference.Enqueue(LinkData[address]);
+                            }
+                            D_Out("STOP");
+                        }
                         //throw new Exception($"Nested calltable not supported. {rf.Address:X5}");
                         break;
                     case ReferenceType.ENVELOPE:
@@ -534,14 +586,16 @@ namespace bmparse
                         reader.BaseStream.Position = rf.Address;
                         DisassembleEnvelope();
                         break;
-
+      
                     default:
-                     
+                        
                         reader.BaseStream.Position = rf.Address;
-
+                       // if (rf.Type==ReferenceType.CALLFROMTABLE)
+                        //{
+                        //    Console.WriteLine(traveled.ContainsKey(rf.Address));
+                       // }
                         if (!traveled.ContainsKey(rf.Address) || dontSkipDuplicate)
                         {
-                            bool dummy = false;
                             D_Out(getBanner(getLabelGeneric(rf.Type.ToString(), reader.BaseStream.Position, out dummy),true));
                             var problematicReference = DisassembleRoutine(rf, isCategory,false,dontSkipDuplicate);
                             if (problematicReference != null)

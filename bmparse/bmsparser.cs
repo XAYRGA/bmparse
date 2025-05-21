@@ -80,6 +80,7 @@ namespace bmparse.bms
             OpcodeToClass[(byte)BMSCommandType.CHECKPORTIMPORT] = typeof(CheckPortImport);
             OpcodeToClass[(byte)BMSCommandType.TIMERELATE_JV0] = typeof(TimeRelateJV0);
             OpcodeToClass[(byte)BMSCommandType.IIRSET] = typeof(IIRSet);
+            OpcodeToClass[(byte)BMSCommandType.VOLUMEMODE] = typeof(VolumeMode);
             OpcodeToClass[0x89] = typeof(IIRSet);
             OpcodeToClass[0x8A] = typeof(IIRSet);
             OpcodeToClass[(byte)BMSCommandType.PERF_U8_DUR_U8] = typeof(PERFU8DURU8);

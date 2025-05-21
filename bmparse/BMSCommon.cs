@@ -29,6 +29,7 @@ namespace bmparse
         public long SourceStack = 0;
         public int RefCount = 0;
         public ReferenceType Type;
+        public bool ForceGlobalRef = false;
 
         public bool ImplicitCallTermination = false;
         public List<long> ReferenceStackSources = new List<long>();

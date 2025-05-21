@@ -40,6 +40,11 @@ namespace bmparse
                     Type = type,
                     SourceStack = src
                 };
+            // for sunshish 
+            //if (addr==0x212 || addr==0xA13C || addr==0xA155 || addr == 0x0a16e || addr== 0xA187 || addr== 0xAC16 || addr==0xAB99)           
+              //  inc.ForceGlobalRef = true;
+            
+
             inc.Depth = depth;
             inc.Address = addr;
             inc.RefCount++;
@@ -126,7 +131,7 @@ namespace bmparse
                 {
                     case BMSCommandType.CALLTABLE:
                         var callt = (Call)command;
-                        AddressRefInfo = referenceAddress(callt.Address, ReferenceType.CALLTABLE, src, depth);
+                        AddressRefInfo = referenceAddress(callt.Address, ReferenceType.CALLTABLE, callt.Address, depth);
                         toAnalyze.Push(AddressRefInfo);
                         break;
                     case BMSCommandType.CALL:
@@ -157,7 +162,7 @@ namespace bmparse
                         var opentrack = (OpenTrack)command;
 
                         AddressRefInfo = referenceAddress(opentrack.Address, ReferenceType.TRACK, src, depth);
-                    
+
                         toAnalyze.Push(AddressRefInfo);
                         break;
                     case BMSCommandType.SIMPLEENV:
@@ -205,13 +210,14 @@ namespace bmparse
                         //Console.WriteLine($"{new string('-', depth)} CALLTABLE");
                         for (int i=0; i < entries.Length; i++)
                         {
-                            var AddressRefInfo = referenceAddress(entries[i], addrInfo.Type==ReferenceType.CALLTABLE ? ReferenceType.CALLFROMTABLE : ReferenceType.JUMP, entries[i], depth + 1,true );
+                            var AddressRefInfo = referenceAddress(entries[i], addrInfo.Type==ReferenceType.CALLTABLE ? ReferenceType.CALLFROMTABLE : ReferenceType.JUMP, Position, depth + 1,true );
                             if (!travelHistory.ContainsKey(addrInfo.Address))
                                 toAnalyze.Push(AddressRefInfo);
                         }
                         break;
                     case ReferenceType.TRACK:
                         Position = addrInfo.Address;
+            
                         if (!travelHistory.ContainsKey(Position))
                             if (currentType==ReferenceType.CALLFROMTABLE)
                                 Analyze(src, addrInfo.Depth + 1, addrInfo.Type);
@@ -219,14 +225,19 @@ namespace bmparse
                                 Analyze(Position, addrInfo.Depth + 1, addrInfo.Type);
                             else
                                 Analyze(src, addrInfo.Depth + 1, addrInfo.Type);
-                            
-                       
+
                         break;
                     case ReferenceType.CALLFROMTABLE:
                         Position = addrInfo.Address;
+                        if (!travelHistory.ContainsKey(Position)) 
                             Analyze(Position, addrInfo.Depth + 1, addrInfo.Type);
                         break;
 
+                    case ReferenceType.CALL:
+                        Position = addrInfo.Address;
+                        if (!travelHistory.ContainsKey(Position))
+                            Analyze(Position, addrInfo.Depth + 1, addrInfo.Type);
+                        break;
                     default:
                         Position = addrInfo.Address;
 

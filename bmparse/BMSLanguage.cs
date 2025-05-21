@@ -787,7 +787,7 @@ namespace bmparse.bms
 
         public override string getAssemblyString(string[] data = null)
         {
-            return ($"PRINT \"{Message}\" {getByteString(RegisterReferences)}");
+            return ($"# PRINT \"{Message}\" {getByteString(RegisterReferences)}");
         }
 
         public override void read(bgReader read)
@@ -836,6 +836,33 @@ namespace bmparse.bms
         {
             write.WriteBE((byte)BMSCommandType.CLOSETRACK);
             write.WriteBE(TrackID);
+        }
+    }
+
+
+    public class VolumeMode : bmscommand
+    {
+        public byte Mode;
+
+        public VolumeMode()
+        {
+            CommandType = BMSCommandType.VOLUMEMODE;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"VOLMODE {Mode:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Mode = read.ReadByte();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)BMSCommandType.VOLUMEMODE);
+            write.WriteBE(Mode);
         }
     }
 
