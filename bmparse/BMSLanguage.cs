@@ -186,14 +186,16 @@ namespace bmparse.bms
         public byte Note = 0;
         public byte Voice = 0;
         public byte Velocity = 0;
-        public byte Type = 0;
-        public byte Behavior = 0;
+
+        public byte Unk1 = 0;
+        public byte Unk2 = 0;
+        public byte _mode = 0;
+        public byte[] Extra;
+
 
         // Datatypes are actually bytes! 
         // Need this so we can signal if it's set or not without adding bools to class ;)
-        public short Release = -1;
-        public short Delay = -1;
-        public short Length = -1;
+
 
         public NoteOnCommand()
         {
@@ -202,73 +204,64 @@ namespace bmparse.bms
 
         public override void read(bgReader read)
         {
-
-            var flags = read.ReadByte();
-
-           // if (flags > 0xC0)
-            //    Console.WriteLine($"{read.BaseStream.Position - 2:X}");
-
-            Type = (byte)(flags >> 3);
-            Behavior = (byte)(Type >> 2);
-
-            //if (Type > 0)
-            //    Console.WriteLine($"{read.BaseStream.Position - 2:X} {Type:X} {flags:X}");
-
-      
-
-            Voice = (byte)(flags & 0x7);
+            Voice = read.ReadByte();
             Velocity = read.ReadByte();
-     
-         
-
-            if ((Type & 1) > 0)
+            var flagShf = Voice & 0x7;
+            
+            if (flagShf == 0)
             {
-                Release = read.ReadByte();
-                Delay = read.ReadByte();
-               // Length = read.ReadByte();
-            } 
-            else if ((Type & 2) > 0)
+                Unk1 = read.ReadByte();
+                var count = (Voice >> 3) & 0x3;
+                Extra = new byte[count];   
+                for (int i = 0; i < count; i++)
+                    Extra[i] = read.ReadByte();
+                Voice >>= 5;
+                _mode = 1;               
+            } else if ( ((flagShf >> 5) & 0x2) > 0)
             {
-                Release = read.ReadByte();
-                Delay = read.ReadByte();
-                Length = read.ReadByte();
+                Unk2 = read.ReadByte();
+                _mode = 2;
             }
-
         }
 
         public override void write(bgWriter write)
         {
             write.WriteBE(Note);
-            var beh = (Behavior << 2) | Type;
-     
-            byte voiceFlags = (byte)(Voice | (beh << 3));
-
-
-            write.WriteBE(voiceFlags);
-            write.WriteBE(Velocity);
-
-            if ((Type & 1) > 0)
+            
+            if (_mode==1)
             {
-               write.WriteBE((byte)Release);
-               write.WriteBE((byte)Delay);
-               // write.WriteBE((byte)Length);
-            }
-            else if ((Type & 2) > 0)
+                var ActualFlags = (Voice << 5) & 0xE0; // 11100000
+                var flags = ActualFlags | ((byte)Extra.Length << 3);
+                //if (Extra.Length > 0 ) 
+                //    Console.WriteLine($"Final Byte {flags}");
+                write.WriteBE((byte)flags);
+                write.WriteBE(Velocity);
+                write.WriteBE(Unk1);
+                write.Write(Extra);                
+            } else if (_mode==2) 
             {
-                write.WriteBE((byte)Release);
-                write.WriteBE((byte)Delay);
-                write.WriteBE((byte)Length);
+                write.WriteBE(Voice);
+                write.WriteBE(Velocity);
+                write.WriteBE(Unk2);       
+            } else if  (_mode==0)
+            {
+                write.WriteBE(Voice);
+                write.WriteBE(Velocity);
             }
+
+
         }
 
         public override string getAssemblyString(string[] data = null)
         {
-            if ((Type & 1) > 0)
-                return ($"NOTEONRD {Note:X}h {Behavior:X}h {Voice:X}h {Velocity:X}h {Release:X}h {Delay:X}h");
-            else if ((Type & 2) > 0)
-                return ($"NOTEONRDL {Note:X}h {Behavior:X}h {Voice:X}h {Velocity:X}h {Release:X}h {Delay:X}h {Length:X}h");
-            else
-                return ($"NOTEON {Note:X}h {Behavior:X}h {Voice:X}h {Velocity:X}h");
+            if (_mode==0)            
+                return ($"NOTEON {Note:X}h {Voice:X}h {Velocity:X}h");
+            else if (_mode==1)
+                return ($"NOTEONEXT {Note:X}h {Voice:X}h {Velocity:X}h {Unk1:X}h {getByteString(Extra)}"); 
+            else if (_mode==2)
+                return ($"NOTEONF {Note:X}h {Voice:X}h {Velocity:X}h {Unk2:X}h");
+
+            return ".SKIP";
         }
     }
 
@@ -398,7 +391,7 @@ namespace bmparse.bms
         {
             if (TargetParameter==6)
             {
-                return ($"SET_BANK_INS {Value>>8} {Value & 0xFF}");
+                return ($"SET_BANK_INS {(byte)(Value>>8)} {(byte)(Value & 0xFF)}");
             }
             return ($"PARAM16 {TargetParameter:X}h {Value}");
         }
@@ -1065,6 +1058,7 @@ namespace bmparse.bms
         {
             write.WriteBE((byte)BMSCommandType.VIBDEPTHMIDI);
             write.WriteBE(Depth);
+            write.WriteBE(Unk);
         }
     }
 
@@ -2169,6 +2163,7 @@ namespace bmparse.bms
 
         public override void read(bgReader read)
         {
+
             Flags = read.ReadByte();
 
             if ((Flags & 0xF) == 0xC)
@@ -2176,15 +2171,18 @@ namespace bmparse.bms
                 A = read.ReadByte();
                 B = read.ReadByte();
                 C = read.ReadByte();
+                //Console.WriteLine($"{read.BaseStream.Position-4:X} 3");
             }
             else if ((Flags & 0xF) == 0x8)
             {
                 A = read.ReadByte();
+                //Console.WriteLine($"{read.BaseStream.Position-2:X} 1");
             }
             else
             {
                 A = read.ReadByte();
                 B = read.ReadByte();
+                //Console.WriteLine($"{read.BaseStream.Position-3:X} 2");
             }
         }
 

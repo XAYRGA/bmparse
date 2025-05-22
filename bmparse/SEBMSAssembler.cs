@@ -89,11 +89,12 @@ namespace bmparse
             var ns = System.Globalization.NumberStyles.HexNumber;
             var strX = argv.Substring(4, argv.Length - 5);
             var strings = strX.Split(',');
+    
             var ret = new byte[strings.Length];
             for (int i = 0; i < strings.Length; i++)
                 ret[i] = byte.Parse(strings[i], ns);
 
-            return new byte[0];
+            return ret;
         }
 
 
@@ -198,7 +199,7 @@ namespace bmparse
             for (int i = 0; i < Project.Categories.Length; i++)
             {
 
-                writer.Pad(4);
+            
                 var currentCategory = Project.Categories[i];
 
                 Console.WriteLine($"Assembling CatSys {i}... {currentCategory.LogicFile}");
@@ -241,7 +242,7 @@ namespace bmparse
                    // writer.Pad(4);
                 }
 
-                 
+                writer.Pad(4); // I guess jumptables need to be aligned to 4?
                 var JumptableOffset = writer.BaseStream.Position;
  
                 // Dump addresses into reference table
@@ -942,66 +943,62 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
-                case "NOTEONRD":
+                case "NOTEONF":
                     {
                         var a1 = checkArgument(ASMLine, 0);
-
-                        var aBeh = checkArgument(ASMLine, 1);
-                        var a2 = checkArgument(ASMLine, 2);
-   
-                        var a3 = checkArgument(ASMLine, 3);
-                        var a4 = checkArgument(ASMLine, 4);
-                        var a5 = checkArgument(ASMLine, 5);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+                        var a4 = checkArgument(ASMLine, 3);
+                        var a5 = checkArgument(ASMLine, 4);
                         var inst = new NoteOnCommand();
 
-                        inst.Type = 1;
+                        inst._mode = 2;
                         inst.Note = (byte)parseNumber(a1);
                         inst.Voice = (byte)parseNumber(a2);
                         inst.Velocity = (byte)parseNumber(a3);
-                        inst.Release = (byte)parseNumber(a4);
-                        inst.Delay = (byte)parseNumber(a5);
-                        //Console.WriteLine(aBeh);
-                        inst.Behavior = (byte)parseNumber(aBeh);
+                        inst.Unk2 = (byte)parseNumber(a4);
+               
                         inst.write(writer);
+       
                         break;
                     }
-                case "NOTEONRDL":
+                case "NOTEONEXT":
                     {
                     
                         var a1 = checkArgument(ASMLine, 0);
-                        var aBeh = checkArgument(ASMLine, 1);
-                        var a2 = checkArgument(ASMLine, 2);
-                        var a3 = checkArgument(ASMLine, 3);
-                        var a4 = checkArgument(ASMLine, 4);
-                        var a5 = checkArgument(ASMLine, 5);
-                        var a6 = checkArgument(ASMLine, 6);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+                        var a4 = checkArgument(ASMLine, 3);
+                        var a5 = checkArgument(ASMLine, 4);
+                    
                         var inst = new NoteOnCommand();
 
-                        inst.Type = 2;
+                        inst._mode = 1;
                         inst.Note = (byte)parseNumber(a1);
                         inst.Voice = (byte)parseNumber(a2);
                         inst.Velocity = (byte)parseNumber(a3);
-                        inst.Release = (byte)parseNumber(a4);
-                        inst.Delay = (byte)parseNumber(a5);
-                        inst.Length = (byte)parseNumber(a6);
-                        inst.Behavior = (byte)parseNumber(aBeh);
+                        inst.Unk1 = (byte)parseNumber(a4);
+                     
+                        inst.Extra = parseHexArgument(a5);
+                        //Console.WriteLine($"{a5} {inst.Extra.Length}");
+                       
                         inst.write(writer);
                         break;
                     }
                 case "NOTEON":
                     {
-                        var a1 = checkArgument(ASMLine, 0);
-                        var aBeh = checkArgument(ASMLine, 1);
-                        var a2 = checkArgument(ASMLine, 2);
-                        var a3 = checkArgument(ASMLine, 3);
+                        var a1 = checkArgument(ASMLine, 0);                     
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
 
                         var inst = new NoteOnCommand();
-                        inst.Type = 0;
+
+                        inst._mode = 0;
 
                         inst.Note = (byte)parseNumber(a1);
                         inst.Voice = (byte)parseNumber(a2);
                         inst.Velocity = (byte)parseNumber(a3);
-                        inst.Behavior = (byte)parseNumber(aBeh);
+                       
                         inst.write(writer);
 
                         break;

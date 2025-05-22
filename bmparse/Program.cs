@@ -20,8 +20,8 @@ namespace bmparse {
 
             args = new string[]{
                 "assemble",
-                "ww",
-                "ww.bms"
+                "ww_6",
+                "wwse_new.bms"
             };
      
 

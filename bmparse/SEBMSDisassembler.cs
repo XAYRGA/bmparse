@@ -346,7 +346,7 @@ namespace bmparse
 
                 var address = (int)reader.ReadUInt24BE();
 
-                if ((address >> 16) > 0x20) // oops, magic number
+                if ((address >> 16) > 0x30) // oops, magic number
                     break;
 
                 addrtable.Enqueue(address);
@@ -558,6 +558,8 @@ namespace bmparse
                         {
                             reader.BaseStream.Position = rf.Address;
                             var addresses = guesstimateJumptableSize();
+
+                            D_Out("ALIGN4");
                             var label = getLabelGeneric("CALLTABLE", rf.Address, out dummy);
                             D_Out($"\n{getBanner(label)}");
                             D_Out($":{label}");

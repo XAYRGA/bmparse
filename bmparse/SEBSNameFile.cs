@@ -12,8 +12,12 @@ namespace bmparse
         const uint NAME = 0x4E414D45;
 
         public Dictionary<int, Dictionary<int, string>> SoundNames = new Dictionary<int, Dictionary<int, string>>();
+
+
         public Dictionary<int, string> CategoryNames = new Dictionary<int, string>();
 
+
+  
         public void Read(bgReader file)
         {
             var W = file.ReadUInt32();
@@ -45,6 +49,11 @@ namespace bmparse
 
         public void Write(bgWriter file)
         {
+
+
+
+
+
             file.Write(NAME);
             file.Write(0); // Version
             file.Write(1); // Section count
