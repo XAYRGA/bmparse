@@ -16,7 +16,55 @@ namespace bmparse
 
         public Dictionary<int, string> CategoryNames = new Dictionary<int, string>();
 
+        public void ReadFromString(string[] data) 
+        {
+            int currentCategory = -1;
+            int currentSoundIndex = 0;
+            byte[] insertOrder = new byte[0];
 
+            Dictionary<int, List<string>> tempNames = new();
+            Dictionary<int, string> tempCatNames = new();
+
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                string line = data[i];
+                if (line.Length < 1 || line[0] == '#')
+                    continue;
+
+                if (line[0]==':')
+                {
+                    currentCategory++;
+                    tempNames[currentCategory] = new List<string>();
+                    currentSoundIndex = 0;
+                    tempCatNames[currentCategory] = line.Substring(1);
+                    continue;
+                }
+                if (line[0]=='@' & line.Length > 3)
+                {
+                    var spl = line.Substring(2).Split(',');
+                    insertOrder = new byte[spl.Length];
+                    for (int j = 0; j < spl.Length; j++)
+                    {
+                        insertOrder[j] = byte.Parse(spl[j]);
+                    }
+                    continue;
+                }
+                tempNames[currentCategory].Add(line);              
+                currentSoundIndex++;
+            }
+
+            for (int i = 0; i < insertOrder.Length; i++)
+            {
+                var ord = insertOrder[i];
+                CategoryNames[i] = tempCatNames[ord];
+                SoundNames.Add(i, new Dictionary<int, string>());
+                var tSounds = tempNames[ord];
+
+                for (int j = 0; j < tSounds.Count; j++)
+                    SoundNames[i].Add(j, tSounds[j]); 
+            }
+        }
   
         public void Read(bgReader file)
         {

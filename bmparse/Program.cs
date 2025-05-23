@@ -17,11 +17,10 @@ namespace bmparse {
             Console.WriteLine("Donate: https://ko-fi.com/xayrga");
             Console.WriteLine();
 
-
             args = new string[]{
                 "assemble",
-                "ww_6",
-                "wwse_new.bms"
+                "sms-named",
+                "test_sms_se.bms"
             };
      
 
@@ -43,6 +42,28 @@ namespace bmparse {
 
                         cmdarg.assert(File.Exists(bmsFile), $"Cannot locate BMSFile {bmsFile}");
 
+                        var nameFilePath = cmdarg.findDynamicStringArgument("-namefile", "NONE");
+                        var nameContainer = new SEBSNameFile();
+                        if (nameFilePath != "NONE")
+                        {
+                            Console.WriteLine($"Loading NAM file {nameFilePath}");
+                            cmdarg.assert(File.Exists(nameFilePath), $"Cannot locate specified NAM file {nameFilePath}");
+
+                            var fHnd = File.OpenRead(nameFilePath);
+                            try
+                            {
+
+                                var reader = new bgReader(fHnd);
+                                nameContainer.Read(reader);
+                                reader.Close();
+                            }
+                            catch (Exception E)
+                            {
+                                cmdarg.assert($"NAMFile is corrupted!\n{E}");
+                            }
+                        }
+
+
                         var bmsHandle = File.OpenRead(bmsFile);
                         var bmsReader = new bgReader(bmsHandle);
 
@@ -55,6 +76,8 @@ namespace bmparse {
 
                         var Disassembler = new SEBMSDisassembler(bmsReader, LinkageInfo)
                         {
+                            SoundNames = nameContainer.SoundNames,
+                            CategoryNames = nameContainer.CategoryNames,
                             CodePageMapping = LinkAnalyzer.CodePageMapping // Need to clean this up. Oversight.
                         };
 
@@ -89,27 +112,7 @@ namespace bmparse {
 
                         cmdarg.assert(File.Exists(bmsFile), $"Cannot locate BMSFile {bmsFile}");
 
-                        var nameFilePath = cmdarg.findDynamicStringArgument("-namefile", "NONE");
-                        var nameContainer = new SEBSNameFile();
-                        if (nameFilePath != "NONE")
-                        {
-                            Console.WriteLine($"Loading NAM file {nameFilePath}");
-                            cmdarg.assert(File.Exists(nameFilePath), $"Cannot locate specified NAM file {nameFilePath}");
-
-                            var fHnd = File.OpenRead(nameFilePath);
-                            try
-                            {
-
-                                var reader = new bgReader(fHnd);
-                                nameContainer.Read(reader);
-                                reader.Close();
-                            }
-                            catch (Exception E)
-                            {
-                                cmdarg.assert($"NAMFile is corrupted!\n{E}");
-                            }
-                        }
-
+            
                         var bmsHandle = File.OpenRead(bmsFile);
                         var bmsReader = new bgReader(bmsHandle);
 
@@ -121,9 +124,7 @@ namespace bmparse {
                         Console.WriteLine($" OK! {LinkageInfo.Count} Link references in assembly.");
 
                         var Disassembler = new SEBMSDisassembler(bmsReader, LinkageInfo)
-                        {
-                            SoundNames = nameContainer.SoundNames,
-                            CategoryNames = nameContainer.CategoryNames,
+                        {        
                             CodePageMapping = LinkAnalyzer.CodePageMapping // Need to clean this up. Oversight.
                         };
 
