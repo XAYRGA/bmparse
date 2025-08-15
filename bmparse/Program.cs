@@ -18,9 +18,9 @@ namespace bmparse {
             Console.WriteLine();
 
             args = new string[]{
-                "assemble",
-                "sms-named",
-                "test_sms_se.bms"
+                "assemble-single",
+                "louie_forest.txt",
+                "forestl.bms"
             };
      
 

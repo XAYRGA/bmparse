@@ -19,7 +19,7 @@ namespace bmparse
         public Dictionary<long, AddressReferenceInfo> AddressReferenceAccumulator = new Dictionary<long, AddressReferenceInfo>();
         public Dictionary<long, int> travelHistory = new Dictionary<long, int>();
         public Dictionary<long, long> CodePageMapping = new Dictionary<long, long>();
-
+        public int[] Registers = new int[32];
         public List<long> Analyzed = new List<long>();
        
         public int[] StopHints = new int[0];
@@ -134,6 +134,12 @@ namespace bmparse
                         AddressRefInfo = referenceAddress(callt.Address, ReferenceType.CALLTABLE, callt.Address, depth);
                         toAnalyze.Push(AddressRefInfo);
                         break;
+                    case BMSCommandType.PARAM_LOADTBL:
+                        var loadtbl = (ParameterLoadTable)command;
+                        var addr = Registers[loadtbl.AddressRegister];
+                        AddressRefInfo = referenceAddress(addr, ReferenceType.LOADTBL, addr, depth);
+                        toAnalyze.Push(AddressRefInfo);
+                        break;
                     case BMSCommandType.CALL:
                         var call = (Call)command;
                         if (call.Flags != 0xC0)
@@ -176,6 +182,10 @@ namespace bmparse
                         toAnalyze.Push(AddressRefInfo);
          
                         break;
+                    case BMSCommandType.PARAM_SET_16:
+                        var rw = (ParameterSet16)command;
+                        Registers[rw.TargetParameter] = rw.Value;
+                        break;
                     case BMSCommandType.RETURN:
                         var retco = (Return)command;
                         if (retco.Condition == 0x00)
@@ -211,6 +221,18 @@ namespace bmparse
                         for (int i=0; i < entries.Length; i++)
                         {
                             var AddressRefInfo = referenceAddress(entries[i], addrInfo.Type==ReferenceType.CALLTABLE ? ReferenceType.CALLFROMTABLE : ReferenceType.JUMP, Position, depth + 1,true );
+                            if (!travelHistory.ContainsKey(addrInfo.Address))
+                                toAnalyze.Push(AddressRefInfo);
+                        }
+                        break;
+                    case ReferenceType.LOADTBL:
+                        Position = addrInfo.Address;
+                        // Need to unroll table into the addrinfo!
+                        var ltblentries = guesstimateJumptableSize();
+                        //Console.WriteLine($"{new string('-', depth)} CALLTABLE");
+                        for (int i = 0; i < ltblentries.Length; i++)
+                        {
+                            var AddressRefInfo = referenceAddress(ltblentries[i],ReferenceType.LOADFROMTBL, Position, depth + 1, true);
                             if (!travelHistory.ContainsKey(addrInfo.Address))
                                 toAnalyze.Push(AddressRefInfo);
                         }

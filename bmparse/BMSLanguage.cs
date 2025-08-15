@@ -376,6 +376,37 @@ namespace bmparse.bms
     }
 
 
+    public class ParameterLoadTable : bmscommand
+    {
+        public byte Flags;
+        public byte TargetParameter;
+        public byte AddressRegister;
+        public byte IndexRegister;
+
+        public ParameterLoadTable()
+        {
+            CommandType = BMSCommandType.PARAM_LOADTBL;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"LOADTBL {Flags:X}h {TargetParameter:X}h {AddressRegister:X}h {IndexRegister}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Flags = read.ReadByte();
+            TargetParameter = read.ReadByte();
+            AddressRegister = read.ReadByte();
+            IndexRegister = read.ReadByte();            
+        }
+
+        public override void write(bgWriter write)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
 
     public class ParameterSet16 : bmscommand
     {
@@ -696,6 +727,74 @@ namespace bmparse.bms
     }
 
 
+    public class OpOverride2 : bmscommand
+    {
+        public byte Instruction;
+        public byte ArgumentMask;
+        public byte[] Stupid;
+        public byte[] ArgumentMaskLookup;
+
+        public OpOverride2()
+        {
+            CommandType = BMSCommandType.OPOVERRIDE_2;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"CRINGE2 {Instruction:X}h {ArgumentMask:X}h {getByteString(ArgumentMaskLookup)} {getByteString(Stupid)}");
+        }
+
+        public override void read(bgReader read)
+        {
+            Instruction = read.ReadByte();
+            ArgumentMask = read.ReadByte();
+
+            var maskLookupSize = 0;
+            var argMskCopy = ArgumentMask;
+            while (argMskCopy > 0)
+                maskLookupSize += ((argMskCopy >>= 1) & 1);
+
+
+
+            var stupid_size = 0;
+            // todo: get your free hardcoded sizes
+            // fuck you , by the way. 
+            switch (Instruction)
+            {
+                case 0xD8:
+                    stupid_size = 8;
+                    break;
+                case 0xc1:
+                    stupid_size = 1;
+                    break;
+                default:
+                    throw new Exception($"oof {read.BaseStream.Position:X} 0x{Instruction:X}");
+            }
+
+            ArgumentMaskLookup = new byte[maskLookupSize]; // fuck this in particular
+            for (int i = 0; i < maskLookupSize; i++)
+                ArgumentMaskLookup[i] = read.ReadByte();
+
+            Stupid = new byte[stupid_size];
+
+            for (int i = 0; i < stupid_size; i++)
+                Stupid[i] = read.ReadByte();
+
+        }
+
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)BMSCommandType.OPOVERRIDE_4);
+            write.WriteBE(Instruction);
+            write.WriteBE(ArgumentMask);
+            write.Write(ArgumentMaskLookup);
+            write.Write(Stupid);
+
+        }
+    }
+
+
     public class OpOverride1 : bmscommand
     {
         public byte Instruction;
@@ -755,6 +854,9 @@ namespace bmparse.bms
                 Stupid[i] = read.ReadByte();
 
         }
+
+
+
 
 
         public override void write(bgWriter write)

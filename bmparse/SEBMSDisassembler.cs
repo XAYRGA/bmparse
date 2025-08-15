@@ -41,8 +41,9 @@ namespace bmparse
         bgReader reader;
 
         public string ProjFolder = "lm_out";
-        StringBuilder output = new StringBuilder();      
-       
+        StringBuilder output = new StringBuilder();
+
+        public int[] Registers = new int[32];
   
 
         public SEBMSDisassembler(bgReader reader, Dictionary<long, AddressReferenceInfo> linkData)
@@ -441,13 +442,23 @@ namespace bmparse
                         var callt = (Call)command;              
                         break;
 
+                    case BMSCommandType.PARAM_LOADTBL:
+                        {
+                            bool newCreated = false;
+                            var loadtbl = (ParameterLoadTable)command;
+                            var addr = Registers[loadtbl.AddressRegister];
+                            var label = getLabelGeneric($"LOADTBL_{addr:X}", addr, out newCreated);
+                            line = loadtbl.getAssemblyString();
+                            if (newCreated)
+                                LocalReference.Enqueue(LinkData[addr]);
+                            break;
+                        }
                     case BMSCommandType.CALL:
                         {
                             var call = (Call)command;
                             bool newCreated = false;
                             if (call.Flags != 0xC0)
                             {
-
                                 line = call.getAssemblyString(new string[] { getLabelGeneric($"CALL_{call.Address:X}", call.Address, out newCreated) });
                                 if (newCreated)
                                     LocalReference.Enqueue(LinkData[call.Address]);
@@ -464,23 +475,9 @@ namespace bmparse
                                 }
                                 else
                                 {
-
-                                    /*
-                                    bool newCreated = false;
-                                    LocalReference.Enqueue(LinkData[call.Address]);
-                                    line = "CALLTABLE " + getLabelGeneric("CALLTABLE", call.Address, out newCreated);
-
-
-                                    reader.PushAnchor();
-                                    reader.BaseStream.Position = call.Address;
-                                    returnValue = guesstimateJumptableSize();
-                                    reader.PopAnchor();
-                                    for (int i = 0;)*/
-
                                     line = call.getAssemblyString(new string[] { getLabelGeneric($"CALLTABLE_{call.Address:X}", call.Address, out newCreated) });
                                     if (newCreated)
                                         LocalReference.Enqueue(LinkData[call.Address]);
-
                                 }
                             }
                         }
@@ -540,6 +537,11 @@ namespace bmparse
                         line = command.getAssemblyString();
                         STOP = true;
                         break;
+                    case BMSCommandType.PARAM_SET_16:
+                        line = command.getAssemblyString();
+                        var rw = (ParameterSet16)command;
+                        Registers[rw.TargetParameter] = rw.Value;
+                        break;
                     default:
                         line = command.getAssemblyString();
                         break;
@@ -576,6 +578,35 @@ namespace bmparse
                                     labl = getLabelGeneric("TABLE_CALL", address, out dummy); 
 
                                 D_Out("REF24 " +  labl);
+
+                                LocalReference.Enqueue(LinkData[address]);
+                            }
+                            D_Out("STOP");
+                        }
+                        //throw new Exception($"Nested calltable not supported. {rf.Address:X5}");
+                        break;
+                    case ReferenceType.LOADTBL:
+                        {
+                           
+                            reader.BaseStream.Position = rf.Address;
+                            var addresses = guesstimateJumptableSize();
+                            D_Out("ALIGN4");
+                            var label = getLabelGeneric("LOADTBL", rf.Address, out dummy);
+                            D_Out($"\n{getBanner(label)}");
+                            D_Out($":{label}");
+                            for (int i = 0; i < addresses.Length; i++)
+                            {
+                                var address = addresses[i];
+                                var ld = LinkData[address];
+                                var exrefs = getExternalReferenceCount(ld);
+
+                                string labl = "";
+                                if (exrefs == 0)  // If this is referenced from multiple sources, then it should be global
+                                    labl = "@" + getGlobalLabel("TABLE_CALL", address);
+                                else
+                                    labl = getLabelGeneric("TABLE_CALL", address, out dummy);
+
+                                D_Out("REF24 " + labl);
 
                                 LocalReference.Enqueue(LinkData[address]);
                             }

@@ -85,7 +85,10 @@ namespace bmparse.bms
             OpcodeToClass[0x8A] = typeof(IIRSet);
             OpcodeToClass[(byte)BMSCommandType.PERF_U8_DUR_U8] = typeof(PERFU8DURU8);
             OpcodeToClass[(byte)BMSCommandType.PERF_S16_DUR_U8] = typeof(PERFS16DURU8);
-
+            OpcodeToClass[(byte)BMSCommandType.PARAM_LOADTBL] = typeof(ParameterLoadTable);
+            // whoever made these instructions:
+            // please invent a suction activated shotgun
+            OpcodeToClass[(byte)BMSCommandType.OPOVERRIDE_2] = typeof(OpOverride2);
         }
 
         public bmscommand readNextCommand(bgReader reader)
