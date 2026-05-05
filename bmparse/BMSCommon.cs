@@ -18,11 +18,12 @@ namespace bmparse
         SOUND = 6,
         ENVELOPE = 7,
         JUMPTABLE = 8,
-        CALLTABLE = 9,       
-        CALLFROMTABLE = 10,
-        CATEGORYOPEN = 11,
-        LOADTBL = 12,
-        LOADFROMTBL = 13
+        JUMPFROMTABLE = 9,
+        CALLTABLE = 10,       
+        CALLFROMTABLE = 11,     
+        CATEGORYOPEN = 12,
+        LOADTBL = 13,
+        LOADFROMTBL = 14
     }
 
     public class AddressReferenceInfo

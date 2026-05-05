@@ -55,6 +55,15 @@ namespace bmparse
             throw new Exception($"{reason} [{currentFile}] @ Line {currentLine}");
         }
 
+
+        private void compileWarn(string reason)
+        {
+            var old = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(reason);
+            Console.ForegroundColor = old;
+        }
+
         public int parseNumber(string num)
         {
             var ns = System.Globalization.NumberStyles.Any;
@@ -98,7 +107,7 @@ namespace bmparse
         }
 
 
-        public void referenceLabel(long address, byte offset, string label, AddressSize addr)
+        public void referenceLabel(long address, sbyte offset, string label, AddressSize addr)
         {
             var nRef = new BMSLabelReference()
             {
@@ -120,7 +129,13 @@ namespace bmparse
         {
 
             if (name[0] == '@')
-                GlobalLabels[name] = address;
+            {
+                if (GlobalLabels.ContainsKey(name))
+                    compileWarn($"\tWhoops: Re-definition of global label: {name}");
+                else              
+                    
+                    GlobalLabels[name] = address;
+            }
             else
                 LocalLabels[name] = address;
 
@@ -146,7 +161,7 @@ namespace bmparse
     
                 if (labDestinationAddress <= 0)
                     return Ref; // Can't link labels any more, found an undefined.
-                //Console.WriteLine($"{Ref.Label} {labDestinationAddress}");
+                //Console.WriteLine($"Linking {Ref.Label} at {labDestinationAddress:X} size {Ref.Size}");
                 writer.PushAnchor();
                 writer.BaseStream.Position = Ref.Address + Ref.InstructionDepth;
                 switch (Ref.Size)
@@ -228,7 +243,8 @@ namespace bmparse
                     }
                     sndAddresses[sndNum] = writer.BaseStream.Position; 
                     unDupe[snd] = writer.BaseStream.Position; 
-                    Console.WriteLine($"\tAssembling sound... {snd}");
+                    Console.WriteLine($"\tAssembling sound... {snd} @ {writer.BaseStream.Position:X5}");
+
                     LoadData($"{projectBase}/{snd}"); // Load data, resets locals and cref's
          
                     if (!ProcBuffer()) // Process buffer
@@ -343,8 +359,24 @@ namespace bmparse
                     {
                         var lbl = checkArgument(ASMLine, 0);
                         referenceLabel(writer.BaseStream.Position, 0, lbl, AddressSize.U24);
+                        writer.WriteBE(0,true);
+                        break;
+                    }
+                case "TREL":
+                    {
+                        var lbl = checkArgument(ASMLine, 0);
+                        var data = new TimeRelate();
+                        data.args = (byte)parseNumber(lbl);
+                        data.write(writer);
+                        break;
+                    }
+                case "UNKC0":
+                case "UNKOPC0":
+                    {
+                        writer.WriteBE(0xc0, true);
                     }
                     break;
+
                 case "OPENTRACK":
                     {
                         var trkFlgs = checkArgument(ASMLine, 0);
@@ -367,11 +399,20 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
+
                 case "INTTIME":
                     {
                         var interruptLevel = checkArgument(ASMLine, 0);
                         var inst = new InterruptTimer();
                         inst.TimerData = (byte)parseNumber(interruptLevel);
+                        inst.write(writer);
+                        break;
+                    }
+                case "UPSYNC":
+                    {
+                        var interruptLevel = checkArgument(ASMLine, 0);
+                        var inst = new UpdateSync();
+                        inst.Value = (byte)parseNumber(interruptLevel);
                         inst.write(writer);
                         break;
                     }
@@ -383,6 +424,29 @@ namespace bmparse
                         var inst = new SimpleEnvelope();
                         inst.Flags = (byte)parseNumber(envID);
                         inst.Address = 0; // Will get filled by label ref later.
+                        inst.write(writer);
+                    }
+                    break;
+                case "CHPORTI":
+                    {
+                        var portid = checkArgument(ASMLine, 0);
+                        var inst = new CheckPortImport();
+                        inst.Port = (byte)parseNumber(portid);
+                        inst.write(writer);
+                    }
+                    break;
+                case "TRELJV0":
+                    {
+                        var args = checkArgument(ASMLine, 0);
+                        var data = parseHexArgument(args);
+                        var w = new TimeRelateJV0();
+                        w.arguments = data;
+                        w.write(writer);
+                    }
+                    break;
+                case "RETIMM":
+                    {
+                        var inst = new ReturnNoArg();
                         inst.write(writer);
                     }
                     break;
@@ -434,6 +498,45 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
+                case "SETPARAM91":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+          
+                        var inst = new ParameterSet16_91();
+                        inst.Source = (byte)parseNumber(a1);
+                        inst.Value = (short)parseNumber(a2);
+            
+                        inst.write(writer);
+                        break;
+                    }
+                case "SETPARAM93":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+                        var inst = new ParameterSet16_93();
+                        inst.Source = (byte)parseNumber(a1);
+                        inst.Value = (short)parseNumber(a2);
+                        inst.Value2 = (byte)parseNumber(a3);
+                        inst.write(writer);
+                        break;
+                    }
+                case "TPRMU8_DU8":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+
+                        var inst = new PERFU8DURU8();
+                        inst.Parameter = (byte)parseNumber(a1);
+                        inst.Value = (byte)parseNumber(a2);
+                        inst.Duration = (byte)parseNumber(a3);
+
+                        inst.write(writer);
+                        break;
+                    }
+
                 case "TPRMS16_DU8_9E":
                     {
                         var a1 = checkArgument(ASMLine, 0);
@@ -493,6 +596,18 @@ namespace bmparse
                         inst.TargetParameter = (byte)parseNumber(a1);
                         inst.Value = (short)parseNumber(a2);
                         inst.write(writer);
+                
+                        break;
+                    }
+                case "PARAM16LB":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var inst = new ParameterSet16();
+                        inst.TargetParameter = (byte)parseNumber(a1);
+                        inst.Value = 0;
+                        inst.write(writer);
+                        referenceLabel(writer.BaseStream.Position, -2, a2, AddressSize.U16);
                         break;
                     }
                 case "SET_BANK_INS":
@@ -609,6 +724,18 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
+                case "JMPTABLE":
+                    {
+                        var tgtReg = checkArgument(ASMLine, 0);
+                        var lbl = checkArgument(ASMLine, 1);
+                        referenceLabel(writer.BaseStream.Position, 3, lbl, AddressSize.U24);
+                        var inst = new Jump();
+                        inst.Flags = 0xC0;
+                        inst.TargetRegister = (byte)parseNumber(tgtReg);
+                        inst.Address = 0; // Will get filled by label ref later.
+                        inst.write(writer);
+                        break;
+                    }
                 case "RETURN":
                     {
                         var cond = checkArgument(ASMLine, 0);
@@ -641,6 +768,21 @@ namespace bmparse
                         var trk = checkArgument(ASMLine, 0);
                         var inst = new IIRCutoff();
                         inst.Cutoff = (byte)parseNumber(trk);
+                        inst.write(writer);
+                        break;
+                    }
+                case "IIRS":
+                    {
+                        var trk = checkArgument(ASMLine, 0);
+                        var inst = new IIRSet();
+                        inst.Cutoff = (byte)parseNumber(trk);
+                        inst.write(writer);
+                        break;
+                    }
+                case "FLUSHREL":
+                    {
+                        var inst = new FlushRelease();
+              
                         inst.write(writer);
                         break;
                     }
@@ -701,6 +843,18 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
+                case "TPRMU8_DU16":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+                        var inst = new PERFU8DURU16();
+                        inst.Parameter = (byte)parseNumber(a1);
+                        inst.Value = (byte)parseNumber(a2);
+                        inst.Duration = (ushort)parseNumber(a3);
+                        inst.write(writer);
+                        break;
+                    }
                 case "TPRMS8_DU8":
                     {
                         var a1 = checkArgument(ASMLine, 0);
@@ -722,6 +876,18 @@ namespace bmparse
                         inst.Parameter = (byte)parseNumber(a1);
                         inst.Value = (short)parseNumber(a2);
                         inst.Duration = (byte)parseNumber(a3);
+                        inst.write(writer);
+                        break;
+                    }
+                case "TPRMS16_DU16":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var a2 = checkArgument(ASMLine, 1);
+                        var a3 = checkArgument(ASMLine, 2);
+                        var inst = new PERFS16DURU16();
+                        inst.Parameter = (byte)parseNumber(a1);
+                        inst.Value = (short)parseNumber(a2);
+                        inst.Duration = (ushort)parseNumber(a3);
                         inst.write(writer);
                         break;
                     }
@@ -826,12 +992,12 @@ namespace bmparse
                     {
                         var a1 = checkArgument(ASMLine, 0);
                         var a2 = checkArgument(ASMLine, 1);
-                        var a3 = checkArgument(ASMLine, 2);
+                        //var a3 = checkArgument(ASMLine, 2);
 
                         var inst = new BusConnect();
                         inst.A = (byte)parseNumber(a1);
                         inst.B = (byte)parseNumber(a2);
-                        inst.C = (byte)parseNumber(a3);
+                        //inst.C = (byte)parseNumber(a3);
 
                         inst.write(writer);
                         break;
@@ -1037,6 +1203,14 @@ namespace bmparse
                         inst.write(writer);
                         break;
                     }
+                case "DISINT":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        var inst = new DisableInterrupt();
+                        inst.intnum = (byte)parseNumber(a1);
+                        inst.write(writer);
+                        break;
+                    }
                 case "RETINT":
                     {
                         var inst = new ReturnInterrupt();
@@ -1074,6 +1248,12 @@ namespace bmparse
                         inst.ArgumentMaskLookup = parseHexArgument(a3);
                         inst.Stupid = parseHexArgument(a4);
                         inst.write(writer);
+                        break;
+                    }
+                case ".DATA":
+                    {
+                        var a1 = checkArgument(ASMLine, 0);
+                        writer.Write(parseHexArgument(a1));
                         break;
                     }
                 case "PRINT":

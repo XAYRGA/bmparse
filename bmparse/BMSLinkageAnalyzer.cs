@@ -11,6 +11,15 @@ using bmparse.debug;
 
 namespace bmparse
 {
+
+    public class BMSCodePageMapping
+    {
+        public int SuperScope;
+        public int SubScope;
+        public long Start;
+        public long End;
+    }
+
     internal partial class BMSLinkageAnalyzer
     {
         public static bmsparser commandFactory = new bmsparser();
@@ -22,7 +31,9 @@ namespace bmparse
         public int[] Registers = new int[32];
         public List<long> Analyzed = new List<long>();
        
-        public int[] StopHints = new int[0];
+        public int[] StopHints = new int[]
+        {
+        };
 
         public BMSLinkageAnalyzer(bgReader reader)
         {
@@ -123,12 +134,17 @@ namespace bmparse
 
                 travelHistory[Position] = 1;
                 CodePageMapping[Position] = src;
-               
+                Console.WriteLine($"pre 0x{Position:X}");
                 var command = commandFactory.readNextCommand(reader);
-                //Console.WriteLine($"{command} {Position:X}");
+                Console.WriteLine($"{command} {Position:X}");
                 AddressReferenceInfo AddressRefInfo;
                 switch (command.CommandType)
                 {
+                    case BMSCommandType.JUMPTABLE:
+                        var jmptt = (Jump)command;
+                        AddressRefInfo = referenceAddress(jmptt.Address, ReferenceType.JUMPTABLE, jmptt.Address, depth);
+                        toAnalyze.Push(AddressRefInfo);
+                        break;
                     case BMSCommandType.CALLTABLE:
                         var callt = (Call)command;
                         AddressRefInfo = referenceAddress(callt.Address, ReferenceType.CALLTABLE, callt.Address, depth);
@@ -136,7 +152,7 @@ namespace bmparse
                         break;
                     case BMSCommandType.PARAM_LOADTBL:
                         var loadtbl = (ParameterLoadTable)command;
-                        var addr = Registers[loadtbl.AddressRegister];
+                        var addr = Registers[loadtbl.AddressRegister < 0x28 ? loadtbl.AddressRegister : loadtbl.AddressRegister - 0x28];
                         AddressRefInfo = referenceAddress(addr, ReferenceType.LOADTBL, addr, depth);
                         toAnalyze.Push(AddressRefInfo);
                         break;
@@ -153,15 +169,23 @@ namespace bmparse
                         }
                         break;
                     case BMSCommandType.JMP:
-                        var jmp = (Jump)command ;
+                        var jmp = (Jump)command;
+     
 
-                        if (travelHistory.ContainsKey(jmp.Address))
-                            AddressRefInfo = referenceAddress(jmp.Address, ReferenceType.LEADIN, src, depth);
-                        else
-                            AddressRefInfo = referenceAddress(jmp.Address, ReferenceType.JUMP, src, depth);
+                        if (jmp.Flags != 0xC0)
+                        {
+                            if (travelHistory.ContainsKey(jmp.Address))
+                                AddressRefInfo = referenceAddress(jmp.Address, ReferenceType.LEADIN, src, depth);
+                            else
+                                AddressRefInfo = referenceAddress(jmp.Address, ReferenceType.JUMP, src, depth);
+                                toAnalyze.Push(AddressRefInfo);
+                        } else
+                        {
+                            AddressRefInfo = referenceAddress(jmp.Address, ReferenceType.JUMPTABLE, src, depth);
+                            toAnalyze.Push(AddressRefInfo);
+                        }
 
-                        toAnalyze.Push(AddressRefInfo);
-                        if (jmp.Flags == 0) // We need to separate from this address because it's jumped into a new scope.
+                        if (jmp.Flags == 0 || jmp.Flags==0xC0) // We need to separate from this address because it's jumped into a new scope.
                             STOP = true;
                         break;                   
                     case BMSCommandType.OPENTRACK:
@@ -220,9 +244,14 @@ namespace bmparse
                         //Console.WriteLine($"{new string('-', depth)} CALLTABLE");
                         for (int i=0; i < entries.Length; i++)
                         {
-                            var AddressRefInfo = referenceAddress(entries[i], addrInfo.Type==ReferenceType.CALLTABLE ? ReferenceType.CALLFROMTABLE : ReferenceType.JUMP, Position, depth + 1,true );
+                            var entry = entries[i];
+                            if (addrInfo.Type==ReferenceType.JUMPTABLE)
+                                Console.WriteLine($"0x{entry:X}");
+                            var AddressRefInfo = referenceAddress(entries[i], addrInfo.Type==ReferenceType.CALLTABLE ? ReferenceType.CALLFROMTABLE : ReferenceType.JUMPFROMTABLE, Position, depth + 1,true );
+                    
+                
                             if (!travelHistory.ContainsKey(addrInfo.Address))
-                                toAnalyze.Push(AddressRefInfo);
+                               toAnalyze.Push(AddressRefInfo);           
                         }
                         break;
                     case ReferenceType.LOADTBL:
@@ -255,6 +284,13 @@ namespace bmparse
                             Analyze(Position, addrInfo.Depth + 1, addrInfo.Type);
                         break;
 
+                    case ReferenceType.JUMPFROMTABLE:
+                        Position = addrInfo.Address;
+                        referenceAddress(Position, ReferenceType.JUMPFROMTABLE, Position, depth + 1, true);
+                        if (!travelHistory.ContainsKey(Position))
+                            Analyze(Position, addrInfo.Depth + 1, addrInfo.Type);
+           
+                        break;
                     case ReferenceType.CALL:
                         Position = addrInfo.Address;
                         if (!travelHistory.ContainsKey(Position))

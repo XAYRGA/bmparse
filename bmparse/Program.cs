@@ -17,20 +17,19 @@ namespace bmparse {
             Console.WriteLine("Donate: https://ko-fi.com/xayrga");
             Console.WriteLine();
 
-            args = new string[]{
-                "assemble-single",
-                "louie_forest.txt",
-                "forestl.bms"
+            args = new string[]
+            {
+                "assemble",
+                "p2se_v3",
+                "aa/se.bms"
             };
+          
      
-
             cmdarg.cmdargs = args;
 
 
             var command = cmdarg.assertArg(0, "Operation");
             command = command.ToLower();
-
-
 
 
             switch (command)
@@ -44,6 +43,7 @@ namespace bmparse {
 
                         var nameFilePath = cmdarg.findDynamicStringArgument("-namefile", "NONE");
                         var nameContainer = new SEBSNameFile();
+                        nameContainer.ReadFromString(File.ReadAllLines("p2nam.txt"));
                         if (nameFilePath != "NONE")
                         {
                             Console.WriteLine($"Loading NAM file {nameFilePath}");

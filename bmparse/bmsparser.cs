@@ -55,6 +55,7 @@ namespace bmparse.bms
             OpcodeToClass[(byte)BMSCommandType.PERF_S8_DUR_U8] = typeof(PERFS8DURU8);
             OpcodeToClass[(byte)BMSCommandType.PERF_S8_NODUR] = typeof(PERFS8);
             OpcodeToClass[(byte)BMSCommandType.PERF_U8_NODUR] = typeof(PERFU8);
+            OpcodeToClass[(byte)BMSCommandType.PERF_U8_DUR_U16] = typeof(PERFU8DURU16);
             OpcodeToClass[(byte)BMSCommandType.PARAM_SET_R] = typeof(ParameterSetRegister);
             OpcodeToClass[(byte)BMSCommandType.PARAM_ADD_R] = typeof(ParameterAddRegister);
             OpcodeToClass[(byte)BMSCommandType.PARAM_SET_8] = typeof(ParameterSet8);
@@ -78,6 +79,7 @@ namespace bmparse.bms
             OpcodeToClass[(byte)BMSCommandType.OUTSWITCH] = typeof(OutSwitch);
             OpcodeToClass[(byte)BMSCommandType.PARAM_SUBTRACT] = typeof(ParameterSubtract);
             OpcodeToClass[(byte)BMSCommandType.CHECKPORTIMPORT] = typeof(CheckPortImport);
+            OpcodeToClass[(byte)BMSCommandType.TIMERELATE] = typeof(TimeRelate);
             OpcodeToClass[(byte)BMSCommandType.TIMERELATE_JV0] = typeof(TimeRelateJV0);
             OpcodeToClass[(byte)BMSCommandType.IIRSET] = typeof(IIRSet);
             OpcodeToClass[(byte)BMSCommandType.VOLUMEMODE] = typeof(VolumeMode);
@@ -89,6 +91,11 @@ namespace bmparse.bms
             // whoever made these instructions:
             // please invent a suction activated shotgun
             OpcodeToClass[(byte)BMSCommandType.OPOVERRIDE_2] = typeof(OpOverride2);
+            OpcodeToClass[(byte)BMSCommandType.UPDATESYNC] = typeof(UpdateSync);
+            OpcodeToClass[(byte)BMSCommandType.SETPARAM_93] = typeof(ParameterSet16_93);
+            OpcodeToClass[(byte)BMSCommandType.FLUSHRELEASE] = typeof(FlushRelease);
+            OpcodeToClass[(byte)BMSCommandType.DISINTERRUPT] = typeof(DisableInterrupt);
+            OpcodeToClass[(byte)BMSCommandType.UNKNOWN_C0_1] = typeof(Unkopc0);
         }
 
         public bmscommand readNextCommand(bgReader reader)

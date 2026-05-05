@@ -97,18 +97,12 @@ namespace bmparse
 
         public void Write(bgWriter file)
         {
-
-
-
-
-
             file.Write(NAME);
             file.Write(0); // Version
             file.Write(1); // Section count
             file.SavePosition("SECT1_OPEN");
             file.Write(0); // Offset, section 1
             file.Pad();
-
 
             var w = (int)file.BaseStream.Position;
             file.PushAnchor();

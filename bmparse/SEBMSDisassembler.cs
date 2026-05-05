@@ -441,9 +441,15 @@ namespace bmparse
                     case BMSCommandType.CALLTABLE:
                         var callt = (Call)command;              
                         break;
+                    case BMSCommandType.JUMPTABLE:
+                        var jmptt = (Jump)command;
+                        break;
 
                     case BMSCommandType.PARAM_LOADTBL:
                         {
+                           // line = "#LOADTBL_HERE";
+                            //break; 
+                           
                             bool newCreated = false;
                             var loadtbl = (ParameterLoadTable)command;
                             var addr = Registers[loadtbl.AddressRegister];
@@ -485,12 +491,18 @@ namespace bmparse
                     case BMSCommandType.JMP:
                         {
                             var jmp = (Jump)command;
-
                             bool newCreated = false;
-                            line = jmp.getAssemblyString(new string[] { getLabelGeneric($"JUMP_{jmp.Address:X}", jmp.Address, out newCreated) }); //+ $" #CS {RefInfo.Address:X5} OCA {reader.BaseStream.Position:X5} OTA {jmp.Address:X5} SS {RefInfo.SourceStack:X5}";
+                            if (jmp.Flags != 0xC0)
+                            {
+                                line = jmp.getAssemblyString(new string[] { getLabelGeneric($"JUMP_{jmp.Address:X}", jmp.Address, out newCreated) }); //+ $" #CS {RefInfo.Address:X5} OCA {reader.BaseStream.Position:X5} OTA {jmp.Address:X5} SS {RefInfo.SourceStack:X5}";
+                            } else
+                            {                               
+                                line = jmp.getAssemblyString(new string[] { getLabelGeneric($"JMPTABLE_{jmp.Address:X}", jmp.Address, out newCreated) });
+                            }
 
-                            if (jmp.Flags == 0) 
+                            if (jmp.Flags == 0 || jmp.Flags == 0xC0) 
                                 STOP = true;
+
                             if (newCreated)
                                 LocalReference.Enqueue(LinkData[jmp.Address]);
                         }
@@ -500,7 +512,7 @@ namespace bmparse
                             bool newCreated = false;
                             var trkOpen = (OpenTrack)command;
 
-                            line = trkOpen.getAssemblyString(new string[] { getLabelGeneric("OPENTRACK", trkOpen.Address, out newCreated) }) ;
+                            line = trkOpen.getAssemblyString(new string[] { getLabelGeneric($"OPENTRACK_{trkOpen.Address:X}", trkOpen.Address, out newCreated) }) ;
                 
                             if (newCreated)
                                 LocalReference.Enqueue(LinkData[trkOpen.Address]);
@@ -584,6 +596,35 @@ namespace bmparse
                             D_Out("STOP");
                         }
                         //throw new Exception($"Nested calltable not supported. {rf.Address:X5}");
+                        break;
+                    case ReferenceType.JUMPTABLE:
+                        {
+                            reader.BaseStream.Position = rf.Address;
+                            var addresses = guesstimateJumptableSize();
+
+                            D_Out("ALIGN4");
+                            var label = getLabelGeneric("JMPTABLE", rf.Address, out dummy);
+                            D_Out($"\n{getBanner(label)}");
+                            D_Out($":{label}");
+                            for (int i = 0; i < addresses.Length; i++)
+                            {
+                                var address = addresses[i];
+                                var ld = LinkData[address];
+                                var exrefs = getExternalReferenceCount(ld);
+
+                                string labl = "";
+                                if (exrefs == 0)  // If this is referenced from multiple sources, then it should be global
+                                    labl = "@" + getGlobalLabel("JTABLE_CALL", address);
+                                else
+                                    labl = getLabelGeneric($"JTABLE_CALL_{address:X}", address, out dummy);
+
+                                D_Out("REF24 " + labl);
+
+                                LocalReference.Enqueue(LinkData[address]);
+                            }
+                            D_Out("STOP");
+                        }
+       
                         break;
                     case ReferenceType.LOADTBL:
                         {

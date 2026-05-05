@@ -38,6 +38,7 @@ namespace bmparse.bms
         SETPARAM_90 = 0x90, 
         SETPARAM_91 = 0x91,
         SETPARAM_92 = 0x92,
+        SETPARAM_93 = 0x93,
         PERF_U8_NODUR = 0x94, 
         PERF_U8_DUR_U8 = 0x96,
         PERF_U8_DUR_U16 = 0x97,
@@ -68,6 +69,7 @@ namespace bmparse.bms
         OPOVERRIDE_2 = 0xB1,
         OPOVERRIDE_4 = 0xB4,
         OPOVERRIDE_R = 0xB8,
+        UNKNOWN_C0_1 = 0xC0,
         OPENTRACK = 0xC1,
         OPENTRACKBROS = 0xC2,
         CALL = 0xC4,
@@ -75,6 +77,7 @@ namespace bmparse.bms
         RETURN_NOARG = 0xC5,
         RETURN = 0xC6,
         JMP = 0xC8,
+        JUMPTABLE = 0xC84,
         LOOP_S = 0xC9,
         LOOP_E = 0xCA,
         READPORT = 0xCB,
@@ -408,6 +411,9 @@ namespace bmparse.bms
     }
 
 
+
+
+
     public class ParameterSet16 : bmscommand
     {
         public byte TargetParameter;
@@ -471,6 +477,34 @@ namespace bmparse.bms
     }
 
 
+
+    public class Unkopc0 : bmscommand
+    {
+
+
+        public Unkopc0()
+        {
+            CommandType = BMSCommandType.UNKNOWN_C0_1;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"UNKC0");
+        }
+
+        public override void read(bgReader read)
+        {
+  
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)BMSCommandType.UNKNOWN_C0_1);
+
+        }
+    }
+
+
     public class OpenTrack : bmscommand
     {
         public byte TrackID;
@@ -505,6 +539,7 @@ namespace bmparse.bms
     {
         public byte Flags;
         public uint Address;
+        public byte TargetRegister;
 
         public Jump()
         {
@@ -513,12 +548,19 @@ namespace bmparse.bms
 
         public override string getAssemblyString(string[] data = null)
         {
-            return ($"JMP {Flags:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
+            if (Flags != 0xC0)
+                return ($"JMP {Flags:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
+
+            return ($"JMPTABLE {TargetRegister:X}h {checkArgOverride(0, Address.ToString() + 'h', data)}");
         }
 
         public override void read(bgReader read)
         {
             Flags = read.ReadByte();
+
+            if (Flags == 0xC0)
+                TargetRegister = read.ReadByte();
+
             Address = read.ReadUInt24BE();
         }
 
@@ -526,7 +568,9 @@ namespace bmparse.bms
         {
             write.WriteBE((byte)BMSCommandType.JMP);
             write.WriteBE(Flags);
-            write.WriteBE(Address,true);
+            if (Flags == 0xC0)
+                write.WriteBE(TargetRegister);
+            write.WriteBE(Address, true);    
         }
     }
 
@@ -840,6 +884,7 @@ namespace bmparse.bms
                 case 0xF1:
                     stupid_size = 0;
                     break;
+              
                 default:
                     throw new Exception($"oof {read.BaseStream.Position:X} 0x{Instruction:X}");
             }
@@ -882,7 +927,7 @@ namespace bmparse.bms
 
         public override string getAssemblyString(string[] data = null)
         {
-            return ($"# PRINT \"{Message}\" {getByteString(RegisterReferences)}");
+            return ($"PRINT \"{Message}\" {getByteString(RegisterReferences)}");
         }
 
         public override void read(bgReader read)
@@ -1000,7 +1045,7 @@ namespace bmparse.bms
     {
         public byte A;
         public byte B;
-        public byte C;
+        //public byte C;
 
         public BusConnect()
         {
@@ -1009,14 +1054,14 @@ namespace bmparse.bms
 
         public override string getAssemblyString(string[] data = null)
         {
-            return ($"BUSCONNECT {A:X}h {B:X}h {C:X}h ");
+            return ($"BUSCONNECT {A:X}h {B:X}h");
         }
 
         public override void read(bgReader read)
         {
             A = read.ReadByte();
             B = read.ReadByte();
-            C = read.ReadByte();
+            //C = read.ReadByte();
         }
 
         public override void write(bgWriter write)
@@ -1024,7 +1069,7 @@ namespace bmparse.bms
             write.WriteBE((byte)CommandType);
             write.WriteBE(A);
             write.WriteBE(B);
-            write.WriteBE(C);
+            //write.WriteBE(C);
 
         }
     }
@@ -1329,6 +1374,32 @@ namespace bmparse.bms
         }
     }
 
+
+    public class DisableInterrupt : bmscommand
+    {
+        public byte intnum;
+        public DisableInterrupt()
+        {
+            CommandType = BMSCommandType.DISINTERRUPT;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"DISINT {intnum}");
+        }
+
+        public override void read(bgReader read)
+        {
+            intnum = read.ReadByte();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.Write(intnum);
+        }
+    }
+
     public class FlushAll : bmscommand
     {
         public FlushAll()
@@ -1439,6 +1510,36 @@ namespace bmparse.bms
             write.Write(arguments);
         }
     }
+
+
+    public class TimeRelate : bmscommand
+    {
+        public byte args;
+
+
+
+        public TimeRelate()
+        {
+            CommandType = BMSCommandType.TIMERELATE;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TREL {args:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            args = read.ReadByte();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.Write(args);
+        }
+    }
+
 
 
     public class WritePort : bmscommand
@@ -1741,6 +1842,40 @@ namespace bmparse.bms
             Parameter = read.ReadByte();
             Value = read.ReadSByte();
             Duration = read.ReadByte();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Parameter);
+            write.WriteBE(Value);
+            write.WriteBE(Duration);
+        }
+    }
+
+
+    public class PERFU8DURU16 : bmscommand
+    {
+        public byte Parameter;
+        public byte Value;
+        public ushort Duration;
+
+
+        public PERFU8DURU16()
+        {
+            CommandType = BMSCommandType.PERF_U8_DUR_U16;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"TPRMU8_DU16 {Parameter:X}h {Value} {Duration:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Parameter = read.ReadByte();
+            Value = read.ReadByte();
+            Duration = read.ReadUInt16();
         }
 
         public override void write(bgWriter write)
@@ -2101,7 +2236,7 @@ namespace bmparse.bms
         public override void read(bgReader read)
         {
             Source = read.ReadByte();
-            Value = read.ReadInt16();
+            Value = read.ReadInt16BE();
         }
 
         public override void write(bgWriter write)
@@ -2138,6 +2273,38 @@ namespace bmparse.bms
             write.WriteBE((byte)CommandType);
             write.WriteBE(Source);
             write.WriteBE(Value);
+        }
+    }
+
+    public class ParameterSet16_93 : bmscommand
+    {
+        public byte Source;
+        public short Value;
+        public byte Value2;
+
+        public ParameterSet16_93()
+        {
+            CommandType = BMSCommandType.SETPARAM_93;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"SETPARAM93 {Source:X}h {Value:X}h {Value2}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Source = read.ReadByte();
+            Value = read.ReadInt16BE();
+            Value2 = read.ReadByte();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Source);
+            write.WriteBE(Value);
+            write.WriteBE(Value2);
         }
     }
 
@@ -2361,6 +2528,32 @@ namespace bmparse.bms
         }
     }
 
+    public class UpdateSync : bmscommand
+    {
+        public ushort Value;
+
+        public UpdateSync()
+        {
+            CommandType = BMSCommandType.UPDATESYNC;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"UPSYNC {Value:X}h");
+        }
+
+        public override void read(bgReader read)
+        {
+            Value = read.ReadUInt16BE();
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+            write.WriteBE(Value);
+        }
+    }
+
     public class Tempo : bmscommand
     {
         public ushort BeatsPerMinute;
@@ -2440,6 +2633,28 @@ namespace bmparse.bms
         }
     }
 
+    public class FlushRelease : bmscommand
+    {
+        public FlushRelease()
+        {
+            CommandType = BMSCommandType.FLUSHRELEASE;
+        }
+
+        public override string getAssemblyString(string[] data = null)
+        {
+            return ($"FLUSHREL");
+        }
+
+        public override void read(bgReader read)
+        {
+
+        }
+
+        public override void write(bgWriter write)
+        {
+            write.WriteBE((byte)CommandType);
+        }
+    }
     public class ReturnNoArg : bmscommand
     {
         public ReturnNoArg()
@@ -2485,4 +2700,7 @@ namespace bmparse.bms
             write.WriteBE((byte)CommandType);
         }
     }
+
+
+
 }
