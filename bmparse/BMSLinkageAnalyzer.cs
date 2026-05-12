@@ -134,9 +134,9 @@ namespace bmparse
 
                 travelHistory[Position] = 1;
                 CodePageMapping[Position] = src;
-                Console.WriteLine($"pre 0x{Position:X}");
+                //Console.WriteLine($"pre 0x{Position:X}");
                 var command = commandFactory.readNextCommand(reader);
-                Console.WriteLine($"{command} {Position:X}");
+                //Console.WriteLine($"{command} {Position:X}");
                 AddressReferenceInfo AddressRefInfo;
                 switch (command.CommandType)
                 {

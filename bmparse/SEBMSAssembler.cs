@@ -146,6 +146,7 @@ namespace bmparse
             argn += 1;
             if (argn >= instr.Length)
                 compileError($"{instr[0]} expected argument at position #{argn - 1}");
+            
             return instr[argn];
         }
 
@@ -341,9 +342,11 @@ namespace bmparse
                     //lastCategoryCallOpcodeOffset = writer.BaseStream.Position;
                     writer.WriteBE(0x000000,true);
                     break;
+                case "ALIGN":
                 case "ALIGN4":
                     writer.Pad(4);
                     break;
+               
                 case "ENVPOINT":
                     {
                         var p1 = checkArgument(ASMLine, 0);
@@ -355,6 +358,7 @@ namespace bmparse
                         writer.WriteBE((ushort)parseNumber(p3));
                     }
                     break;
+                case ".TBLRF":
                 case "REF24":
                     {
                         var lbl = checkArgument(ASMLine, 0);
@@ -362,6 +366,7 @@ namespace bmparse
                         writer.WriteBE(0,true);
                         break;
                     }
+                case "timerelate":
                 case "TREL":
                     {
                         var lbl = checkArgument(ASMLine, 0);
@@ -370,6 +375,7 @@ namespace bmparse
                         data.write(writer);
                         break;
                     }
+                case "unkc0":
                 case "UNKC0":
                 case "UNKOPC0":
                     {
@@ -377,6 +383,7 @@ namespace bmparse
                     }
                     break;
 
+                case "TRKOPEN":
                 case "OPENTRACK":
                     {
                         var trkFlgs = checkArgument(ASMLine, 0);
